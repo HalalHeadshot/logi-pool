@@ -7,6 +7,8 @@ export async function notifyDrivers(crop, village, quantity) {
     console.log('❌ No drivers available');
     return;
   }
+  console.log('Drivers found:', drivers);
+
 
   drivers.forEach(driver => {
     const message =

@@ -1,25 +1,18 @@
-import db from '../config/db.js';
+import mongoose from 'mongoose';
 
-export function saveProduce(phone, crop, quantity, village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'INSERT INTO produce (phone, crop, quantity, village) VALUES (?, ?, ?, ?)';
+const produceSchema = new mongoose.Schema({
+  phone: String,
+  crop: String,
+  quantity: Number,
+  village: String,
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
-    db.query(sql, [phone, crop, quantity, village], (err, result) => {
-      if (err) reject(err);
-      else resolve(result);
-    });
-  });
-}
+export const Produce = mongoose.model('Produce', produceSchema);
 
-export function getTotalQuantity(crop, village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'SELECT SUM(quantity) AS total FROM produce WHERE crop = ? AND village = ?';
-
-    db.query(sql, [crop, village], (err, result) => {
-      if (err) reject(err);
-      else resolve(result[0].total || 0);
-    });
-  });
+export async function saveProduce(phone, crop, quantity, village) {
+  await Produce.create({ phone, crop, quantity, village });
 }

@@ -1,42 +1,44 @@
-import db from '../config/db.js';
+import mongoose from 'mongoose';
 
-export function createBooking(serviceId, farmerPhone, village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'INSERT INTO service_bookings (service_id, farmer_phone, village, status) VALUES (?, ?, ?, "ACTIVE")';
+const serviceBookingSchema = new mongoose.Schema({
+  service_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service'
+  },
+  farmer_phone: String,
+  village: String,
+  status: {
+    type: String,
+    default: 'ACTIVE'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
-    db.query(sql, [serviceId, farmerPhone, village], err => {
-      if (err) reject(err);
-      else resolve();
-    });
+export const ServiceBooking =
+  mongoose.model('ServiceBooking', serviceBookingSchema);
+
+export async function createBooking(serviceId, farmerPhone, village) {
+  await ServiceBooking.create({
+    service_id: serviceId,
+    farmer_phone: farmerPhone,
+    village
   });
 }
 
-export function completeBooking(serviceId) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'UPDATE service_bookings SET status = "DONE" WHERE service_id = ? AND status = "ACTIVE"';
+export async function completeBookingByOwner(ownerPhone) {
+  const services = await mongoose.model('Service')
+    .find({ owner_phone: ownerPhone });
 
-    db.query(sql, [serviceId], err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  const serviceIds = services.map(s => s._id);
+
+  await ServiceBooking.updateMany(
+    {
+      service_id: { $in: serviceIds },
+      status: 'ACTIVE'
+    },
+    { status: 'DONE' }
+  );
 }
-
-export function completeBookingByOwner(ownerPhone) {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      UPDATE service_bookings sb
-      JOIN services s ON sb.service_id = s.id
-      SET sb.status = 'DONE'
-      WHERE s.owner_phone = ? AND sb.status = 'ACTIVE'
-    `;
-
-    db.query(sql, [ownerPhone], err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
-

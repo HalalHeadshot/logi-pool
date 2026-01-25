@@ -1,61 +1,43 @@
-import db from '../config/db.js';
+import mongoose from 'mongoose';
 
-export function registerService(type, phone, village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'INSERT INTO services (type, owner_phone, village) VALUES (?, ?, ?)';
+const serviceSchema = new mongoose.Schema({
+  type: String,          // PLOUGH, TRACTOR
+  owner_phone: String,
+  village: String,
+  available: {
+    type: Boolean,
+    default: true
+  }
+});
 
-    db.query(sql, [type, phone, village], err => {
-      if (err) reject(err);
-      else resolve();
-    });
+export const Service = mongoose.model('Service', serviceSchema);
+
+export async function registerService(type, phone, village) {
+  await Service.create({
+    type,
+    owner_phone: phone,
+    village
   });
 }
 
-export function getAvailableService(type, village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'SELECT * FROM services WHERE type = ? AND village = ? AND available = true LIMIT 1';
-
-    db.query(sql, [type, village], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows[0]);
-    });
+export async function getAvailableService(type, village) {
+  return await Service.findOne({
+    type,
+    village,
+    available: true
   });
 }
 
-export function markServiceUnavailable(serviceId) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'UPDATE services SET available = false WHERE id = ?';
-
-    db.query(sql, [serviceId], err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+export async function markServiceUnavailable(serviceId) {
+  await Service.findByIdAndUpdate(
+    serviceId,
+    { available: false }
+  );
 }
 
-export function markServiceAvailable(serviceId) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'UPDATE services SET available = true WHERE id = ?';
-
-    db.query(sql, [serviceId], err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
-
-export function markServiceAvailableByOwner(ownerPhone) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'UPDATE services SET available = true WHERE owner_phone = ?';
-
-    db.query(sql, [ownerPhone], err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+export async function markServiceAvailableByOwner(ownerPhone) {
+  await Service.updateMany(
+    { owner_phone: ownerPhone },
+    { available: true }
+  );
 }

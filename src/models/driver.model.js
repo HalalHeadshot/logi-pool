@@ -1,28 +1,24 @@
-import db from '../config/db.js';
+import mongoose from 'mongoose';
 
-export function getAvailableDrivers(village) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'SELECT * FROM drivers WHERE village = ? AND available = true';
+const driverSchema = new mongoose.Schema({
+  name: String,
+  phone: String,
+  village: String,
+  available: {
+    type: Boolean,
+    default: true
+  }
+});
 
-    db.query(sql, [village], (err, result) => {
-      if (err) {
-        reject(err);
-      }else {
-        resolve(result);
-      }
-    });
-  });
+export const Driver = mongoose.model('Driver', driverSchema);
+
+export async function getAvailableDrivers(village) {
+  return await Driver.find({ village, available: true });
 }
 
-export function markDriverUnavailable(phone) {
-  return new Promise((resolve, reject) => {
-    const sql =
-      'UPDATE drivers SET available = false WHERE phone = ?';
-
-    db.query(sql, [phone], (err, result) => {
-      if (err) reject(err);
-      else resolve(result);
-    });
-  });
+export async function markDriverUnavailable(phone) {
+  await Driver.updateOne(
+    { phone },
+    { available: false }
+  );
 }
