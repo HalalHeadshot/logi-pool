@@ -5,22 +5,32 @@ import {
 } from '../models/pool.model.js';
 
 import { notifyDrivers } from './notification.service.js';
-import { CROP_THRESHOLDS } from '../config/thresholds.js';
 
 export async function processPooling(crop, village, quantity) {
-  const threshold = CROP_THRESHOLDS[crop] || 10;
-
-  const pool = await getOrCreatePool(crop, village, threshold);
+  const pool = await getOrCreatePool(crop, village);
 
   if (pool.status !== 'OPEN') return false;
 
   await updatePoolQuantity(pool._id, quantity);
 
-  const updatedTotal = pool.total_quantity + quantity;
+  const updatedPool = await (await import('../models/pool.model.js'))
+    .Pool.findById(pool._id);
 
-  if (updatedTotal >= threshold) {
+  const now = new Date();
+
+  const isThresholdMet = updatedPool.total_quantity >= updatedPool.threshold;
+  const isExpired = now >= updatedPool.expiresAt;
+
+  if (isThresholdMet || isExpired) {
     await markPoolReady(pool._id);
-    await notifyDrivers(crop, village, updatedTotal);
+    await notifyDrivers(crop, village, updatedPool.total_quantity);
+
+    console.log(
+      isThresholdMet
+        ? `🚚 Threshold met for ${crop} in ${village}`
+        : `⏰ Pool expired for ${crop} in ${village}, dispatching partial load`
+    );
+
     return true;
   }
 
