@@ -3,7 +3,7 @@ import { processPooling } from '../services/pooling.service.js';
 
 import { createDispatch } from '../models/dispatch.model.js';
 import { markDriverUnavailable } from '../models/driver.model.js';
-import { markPoolAssigned } from '../models/pool.model.js';
+import { markPoolAssigned, getFirstReadyPool } from '../models/pool.model.js';
 
 import {
   handleRegister,
@@ -48,15 +48,21 @@ export async function handleSMS(req, res) {
     ====================== */
 
     if (message === 'YES') {
-      // MVP assumption: last READY pool
-      const crop = 'RICE';
-      const village = 'KHEDA';
+      // Find the first READY pool
+      const readyPool = await getFirstReadyPool();
 
-      await createDispatch(crop, village, 0, phone);
+      if (!readyPool) {
+        return res.send('No pickup available right now');
+      }
+
+      const { crop, village, total_quantity } = readyPool;
+
+      await createDispatch(crop, village, total_quantity, phone);
       await markDriverUnavailable(phone);
       await markPoolAssigned(crop, village);
 
-      return res.send('Pickup assigned to you');
+      console.log(`🚛 Driver ${phone} assigned to ${crop} in ${village}`);
+      return res.send(`Pickup assigned: ${crop} (${total_quantity} qty) in ${village}`);
     }
 
     /* ======================

@@ -50,3 +50,7 @@ export async function markPoolAssigned(crop, village) {
     { status: 'ASSIGNED' }
   );
 }
+
+export async function getFirstReadyPool() {
+  return await Pool.findOne({ status: 'READY' }).sort({ createdAt: 1 });
+}
