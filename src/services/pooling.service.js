@@ -1,7 +1,8 @@
 import {
   getOrCreatePool,
   updatePoolQuantity,
-  markPoolReady
+  markPoolReady,
+  Pool
 } from '../models/pool.model.js';
 
 import { notifyDrivers } from './notification.service.js';
@@ -13,9 +14,7 @@ export async function processPooling(crop, village, quantity) {
 
   await updatePoolQuantity(pool._id, quantity);
 
-  const updatedPool = await (await import('../models/pool.model.js'))
-    .Pool.findById(pool._id);
-
+  const updatedPool = await Pool.findById(pool._id);
   const now = new Date();
 
   const isThresholdMet = updatedPool.total_quantity >= updatedPool.threshold;
@@ -23,12 +22,10 @@ export async function processPooling(crop, village, quantity) {
 
   if (isThresholdMet || isExpired) {
     await markPoolReady(pool._id);
-    await notifyDrivers(crop, village, updatedPool.total_quantity);
+    await notifyDrivers(updatedPool.category, village, updatedPool.total_quantity);
 
     console.log(
-      isThresholdMet
-        ? `🚚 Threshold met for ${crop} in ${village}`
-        : `⏰ Pool expired for ${crop} in ${village}, dispatching partial load`
+      `🚚 Dispatching ${updatedPool.category} pool with crops: ${updatedPool.crops.join(', ')}`
     );
 
     return true;

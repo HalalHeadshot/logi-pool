@@ -12,12 +12,25 @@ const driverSchema = new mongoose.Schema({
 
 export const Driver = mongoose.model('Driver', driverSchema);
 
+// Get driver by phone
+export async function getDriverByPhone(phone) {
+  const normalizedPhone = '+' + phone.replace(/[\s+]/g, '');
+  return await Driver.findOne({ phone: normalizedPhone });
+}
+
+// Get all available drivers in a village
 export async function getAvailableDrivers(village) {
   return await Driver.find({ village, available: true });
 }
 
+export async function markDriverAvailable(phone) {
+  const normalizedPhone = '+' + phone.replace(/[\s+]/g, '');
+  await Driver.updateOne({ phone: normalizedPhone }, { available: true });
+}
+
+
+// Mark driver unavailable after assignment
 export async function markDriverUnavailable(phone) {
-  // Normalize phone - remove spaces and ensure + prefix
   const normalizedPhone = '+' + phone.replace(/[\s+]/g, '');
 
   const result = await Driver.updateOne(
@@ -25,6 +38,10 @@ export async function markDriverUnavailable(phone) {
     { available: false }
   );
 
-  console.log(`📋 Driver ${normalizedPhone} marked unavailable:`, result.modifiedCount > 0 ? '✅' : '❌ not found');
+  console.log(
+    `📋 Driver ${normalizedPhone} marked unavailable:`,
+    result.modifiedCount > 0 ? '✅' : '❌ not found'
+  );
+
   return result;
 }

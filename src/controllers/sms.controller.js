@@ -2,8 +2,12 @@ import { saveProduce } from '../models/produce.model.js';
 import { processPooling } from '../services/pooling.service.js';
 
 import { createDispatch } from '../models/dispatch.model.js';
-import { markDriverUnavailable } from '../models/driver.model.js';
-import { markPoolAssigned, getFirstReadyPool } from '../models/pool.model.js';
+import { markDriverUnavailable, getDriverByPhone } from '../models/driver.model.js';
+import { markPoolAssigned, getReadyPoolForVillage } from '../models/pool.model.js';
+
+import { completeDispatchByDriver } from '../models/dispatch.model.js';
+import { markDriverAvailable } from '../models/driver.model.js';
+
 
 import {
   handleRegister,
@@ -11,10 +15,16 @@ import {
   handleDone
 } from '../services/equipment.service.js';
 
+// Normalize phone format
+function normalizePhone(phone) {
+  if (!phone) return null;
+  return '+' + phone.replace(/[\s+]/g, '');
+}
+
 export async function handleSMS(req, res) {
   try {
     const message = req.body.Body?.trim().toUpperCase();
-    const phone = req.body.From;
+    const phone = normalizePhone(req.body.From);
 
     if (!message || !phone) {
       return res.send('Invalid SMS');
@@ -26,12 +36,16 @@ export async function handleSMS(req, res) {
 
     if (message.startsWith('REGISTER')) {
       const [, type, village] = message.split(' ');
+      if (!type || !village) return res.send('Format: REGISTER <TYPE> <VILLAGE>');
+
       await handleRegister(type, phone, village);
       return res.send('Service registered successfully');
     }
 
     if (message.startsWith('BOOK')) {
       const [, type, village] = message.split(' ');
+      if (!type || !village) return res.send('Format: BOOK <TYPE> <VILLAGE>');
+
       const booked = await handleBooking(type, phone, village);
       return res.send(
         booked ? 'Service booked successfully' : 'No service available'
@@ -39,30 +53,52 @@ export async function handleSMS(req, res) {
     }
 
     if (message === 'DONE') {
+      // First check if driver has active transport job
+      const dispatchCompleted = await completeDispatchByDriver(phone);
+
+      if (dispatchCompleted) {
+        await markDriverAvailable(phone);
+        return res.send('Transport job completed. You are now available.');
+      }
+
+      // Otherwise treat as equipment completion
       await handleDone(phone);
       return res.send('Service marked as completed');
-    }
+      }
+
 
     /* ======================
        PHASE 1: DRIVER ACCEPT
     ====================== */
 
     if (message === 'YES') {
-      // Find the first READY pool
-      const readyPool = await getFirstReadyPool();
+      const driver = await getDriverByPhone(phone);
 
-      if (!readyPool) {
-        return res.send('No pickup available right now');
+      if (!driver) {
+        return res.send('Driver not registered');
       }
 
-      const { crop, village, total_quantity } = readyPool;
+      if (!driver.available) {
+        return res.send('You are already assigned to a pickup');
+      }
 
-      await createDispatch(crop, village, total_quantity, phone);
+      const readyPool = await getReadyPoolForVillage(driver.village);
+
+      if (!readyPool) {
+        return res.send('No pickup available in your area right now');
+      }
+
+      const { category, crops, village, total_quantity, _id } = readyPool;
+
+
+      await createDispatch(category, village, total_quantity, phone, crops);
+      await markPoolAssigned(_id);
       await markDriverUnavailable(phone);
-      await markPoolAssigned(crop, village);
+      
 
       console.log(`🚛 Driver ${phone} assigned to ${crop} in ${village}`);
-      return res.send(`Pickup assigned: ${crop} (${total_quantity} qty) in ${village}`);
+      return res.send(`Pickup assigned: ${category} load (${total_quantity} qty) in ${village}`);
+
     }
 
     /* ======================
@@ -91,7 +127,7 @@ export async function handleSMS(req, res) {
     );
 
   } catch (err) {
-    console.error(err);
+    console.error('SMS Controller Error:', err);
     res.send('Server error');
   }
 }
