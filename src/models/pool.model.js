@@ -3,19 +3,18 @@ import { CROP_CATEGORIES } from '../config/cropCategories.js';
 import { CATEGORY_RULES } from '../config/categoryRules.js';
 
 const poolSchema = new mongoose.Schema({
-  category: String,      // NEW
+  category: String,
   village: String,
-  crops: [String],       // track which crops are inside
+  crops: [String],
   total_quantity: { type: Number, default: 0 },
   threshold: Number,
-  status: { type: String, default: 'OPEN' },
+  status: { type: String, default: 'OPEN' }, // OPEN → READY → ASSIGNED → COMPLETED
   createdAt: { type: Date, default: Date.now },
   expiresAt: Date
 });
 
 export const Pool = mongoose.model('Pool', poolSchema);
 
-// Create or fetch pool by CATEGORY + village
 export async function getOrCreatePool(crop, village) {
   const category = CROP_CATEGORIES[crop] || 'VEGETABLE';
   const rule = CATEGORY_RULES[category];
@@ -43,9 +42,7 @@ export async function getOrCreatePool(crop, village) {
 }
 
 export async function updatePoolQuantity(poolId, quantity) {
-  await Pool.findByIdAndUpdate(poolId, {
-    $inc: { total_quantity: quantity }
-  });
+  await Pool.findByIdAndUpdate(poolId, { $inc: { total_quantity: quantity } });
 }
 
 export async function markPoolReady(poolId) {
@@ -56,9 +53,11 @@ export async function markPoolAssigned(poolId) {
   await Pool.findByIdAndUpdate(poolId, { status: 'ASSIGNED' });
 }
 
+export async function markPoolCompleted(poolId) {
+  if (!poolId) return;
+  await Pool.findByIdAndUpdate(poolId, { status: 'COMPLETED' });
+}
+
 export async function getReadyPoolForVillage(village) {
-  return await Pool.findOne({
-    village,
-    status: 'READY'
-  }).sort({ expiresAt: 1 });
+  return await Pool.findOne({ village, status: 'READY' }).sort({ expiresAt: 1 });
 }
