@@ -24,6 +24,8 @@ import {
   handleDone
 } from '../services/equipment.service.js';
 
+import { createJourneyForCompletedDispatch } from '../services/journey.service.js';
+
 function normalizePhone(phone) {
   if (!phone) return null;
   return '+' + phone.replace(/[\s+]/g, '');
@@ -57,6 +59,11 @@ export async function handleSMS(req, res) {
       if (dispatch) {
         await markDriverAvailable(phone);
         await markPoolCompleted(dispatch.poolId);
+        try {
+          await createJourneyForCompletedDispatch(dispatch);
+        } catch (err) {
+          console.error('Journey record failed:', err);
+        }
         return res.send('Transport job completed. You are now available.');
       }
 
