@@ -33,10 +33,29 @@ function normalizePhone(phone) {
 
 export async function handleSMS(req, res) {
   try {
-    const message = req.body.Body?.trim().toUpperCase();
-    const phone = normalizePhone(req.body.From);
+    console.log('📨 Incoming SMS webhook:', JSON.stringify(req.body, null, 2));
 
-    if (!message || !phone) return res.send('Invalid SMS');
+    // Support multiple SMS gateway formats:
+    // TextBee: { sender: "+91...", message: "..." } or { data: { sender, message } }
+    // httpSMS CloudEvents: { data: { content: "...", from: "..." } }
+    // Twilio: { Body: "...", From: "..." }
+
+    const data = req.body?.data || req.body;
+
+    const rawMessage = data?.message || data?.content || data?.text || data?.body || data?.Body || req.body?.Body;
+    const rawPhone = data?.sender || data?.from || data?.contact || data?.From || req.body?.From;
+
+    console.log('📋 Extracted:', { message: rawMessage?.substring(0, 50), phone: rawPhone });
+
+    const message = rawMessage?.trim().toUpperCase();
+    const phone = normalizePhone(rawPhone);
+
+    if (!message || !phone) {
+      console.log('❌ Invalid SMS - missing message or phone');
+      return res.status(200).json({ status: 'received', error: 'Invalid SMS' });
+    }
+
+    console.log(`✅ Processing SMS: "${message}" from ${phone}`);
 
     // Equipment registration
     if (message.startsWith('REGISTER')) {

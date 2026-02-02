@@ -1,0 +1,11 @@
+{
+  "contentType": "application/json",
+  "bodyType": "object",
+  "body": {
+    "specversion": "1.0",
+    "data": {
+      "content": "YES",
+      "from": "+917021128977"
+    }
+  }
+}

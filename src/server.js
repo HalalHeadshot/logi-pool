@@ -11,6 +11,15 @@ const app = express();
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.use(express.text({ type: 'application/cloudevents+json' }));
+
+// Parse string bodies as JSON (for CloudEvents format)
+app.use('/sms', (req, res, next) => {
+  if (typeof req.body === 'string') {
+    try { req.body = JSON.parse(req.body); } catch (e) { /* ignore */ }
+  }
+  next();
+});
 
 app.use('/sms', smsRoutes);
 app.use('/journey', journeyRoutes);
