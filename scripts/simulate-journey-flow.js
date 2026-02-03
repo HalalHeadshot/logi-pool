@@ -19,7 +19,9 @@ const DRIVER_PHONE = '+1555SIMDRIVER';
 const FARMER_PHONE = '+1555SIMFARMER';
 // SMS controller uppercases Body, so pool/driver village must match uppercase
 // Use unique village per run so we get a fresh pool + journey
-const VILLAGE = 'SIMVILLAGE2';
+// Use unique village per run so we get a fresh pool + journey
+const VILLAGE = 'SIMVILLAGE_' + Date.now();
+const ADDRESS = '123 Farm Lane, ' + VILLAGE;
 
 function log(msg, ok = null) {
   const icon = ok === true ? '✅' : ok === false ? '❌' : '  ';
@@ -35,7 +37,7 @@ async function waitForServer(maxWaitMs = 15000) {
         log('Server is up', true);
         return true;
       }
-    } catch (_) {}
+    } catch (_) { }
     await new Promise((r) => setTimeout(r, step));
   }
   log('Server did not become ready', false);
@@ -82,8 +84,8 @@ async function run() {
       process.exit(1);
     }
 
-    log('1. Farmer logs produce (LOG TOMATO 10 SIMVILLAGE2)...');
-    const logRes = await postSms(FARMER_PHONE, 'LOG TOMATO 10 SIMVILLAGE2');
+    log(`1. Farmer logs produce (LOG TOMATO 10 | ${ADDRESS})...`);
+    const logRes = await postSms(FARMER_PHONE, `LOG TOMATO 10 | ${ADDRESS}`);
     log(logRes.ok ? `Response: ${logRes.text}` : `Failed: ${logRes.status} ${logRes.text}`, logRes.ok);
     if (!logRes.ok) throw new Error('LOG failed');
 
@@ -121,7 +123,14 @@ async function run() {
     log(`Payload present: ${!!getData.payload}, contentHash: ${getData.contentHash?.slice(0, 16)}..., txUrl: ${getData.txUrl || 'n/a'}`, true);
     if (getData.payload) {
       log(`  - Pool: ${getData.payload.pool?.category}, village: ${getData.payload.pool?.village}, total_quantity: ${getData.payload.pool?.total_quantity}`);
-      log(`  - Contributions: ${getData.payload.contributions?.length ?? 0} farmer(s)`);
+      log(`  - Pool: ${getData.payload.pool?.category}, village: ${getData.payload.pool?.village}, total_quantity: ${getData.payload.pool?.total_quantity}`);
+      const contribs = getData.payload.contributions || [];
+      log(`  - Contributions: ${contribs.length} farmer(s)`);
+      if (contribs.length > 0 && contribs[0].address === ADDRESS) {
+        log('  - Address verification: MATCH ✅', true);
+      } else {
+        log(`  - Address verification: FAILED (Expected ${ADDRESS}, got ${contribs[0]?.address})`, false);
+      }
     }
 
     log('6. GET /journey/:id/qr (PNG)...');

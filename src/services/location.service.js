@@ -33,8 +33,8 @@ export async function extractVillageFromAddress(address) {
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      console.log("⚠️ Gemini returned no text");
-      return 'UNKNOWN';
+      console.log("⚠️ Gemini returned no text, attempting fallback...");
+      throw new Error("Gemini returned no text");
     }
 
     let village = text
@@ -50,7 +50,12 @@ export async function extractVillageFromAddress(address) {
     return village.toUpperCase();
 
   } catch (err) {
-    console.error("❌ Gemini extraction crashed:", err);
-    return 'UNKNOWN';
+    console.error("❌ Gemini extraction crashed/failed:", err);
   }
+
+  // Fallback: simple heuristic (take last word)
+  console.log("⚠️ Using fallback extraction (last word)");
+  const words = address.replace(/[^\w\s]/gi, '').trim().split(/\s+/);
+  const fallback = words[words.length - 1];
+  return fallback ? fallback.toUpperCase() : 'UNKNOWN';
 }

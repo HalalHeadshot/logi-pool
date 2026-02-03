@@ -13,13 +13,14 @@ const produceSchema = new mongoose.Schema({
 export const Produce = mongoose.model('Produce', produceSchema);
 
 export async function saveProduce(phone, crop, quantity, address, village) {
-  return await Produce.create({
+  const doc = await Produce.create({
     farmer_phone: phone,
     crop,
     quantity,
     address,
     village
   });
+  return doc;
 }
 
 

@@ -14,6 +14,7 @@ function buildCanonicalPayload(pool, dispatch, produceList) {
     crop: p.crop,
     quantity: p.quantity,
     village: p.village,
+    address: p.address,
     createdAt: p.createdAt
   }));
 
