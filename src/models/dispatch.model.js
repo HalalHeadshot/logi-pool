@@ -26,9 +26,16 @@ export async function createDispatch(category, village, total_quantity, driver_p
 }
 
 export async function completeDispatchByDriver(phone) {
-  return await Dispatch.findOneAndUpdate(
-    { driver_phone: phone, status: 'ASSIGNED' },
+  console.log('🔍 completeDispatchByDriver called with phone:', phone);
+  const query = { driver_phone: phone, status: 'ASSIGNED' };
+  console.log('🔍 Query:', JSON.stringify(query));
+
+  const result = await Dispatch.findOneAndUpdate(
+    query,
     { status: 'COMPLETED' },
     { new: true }
   );
+
+  console.log('🔍 Update result:', result ? `✅ Updated dispatch ${result._id}` : '❌ No dispatch found');
+  return result;
 }

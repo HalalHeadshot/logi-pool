@@ -4,10 +4,6 @@ import { Produce } from '../models/produce.model.js';
 import { uploadJson, getJson } from './r2.service.js';
 import { createJourneyRecord } from '../models/journey.model.js';
 
-const CHAIN_RPC_URL = process.env.CHAIN_RPC_URL;
-const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
-const JOURNEY_WALLET_ADDRESS = process.env.JOURNEY_WALLET_ADDRESS;
-
 function buildCanonicalPayload(pool, dispatch, produceList) {
   const contributions = produceList.map((p) => ({
     farmer_phone: p.farmer_phone,
@@ -62,6 +58,17 @@ function hashPayload(jsonString) {
 }
 
 async function recordHashOnChain(hashHex) {
+  // Read env vars inside function to avoid timing issues with dotenv
+  const CHAIN_RPC_URL = process.env.CHAIN_RPC_URL;
+  const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
+  const JOURNEY_WALLET_ADDRESS = process.env.JOURNEY_WALLET_ADDRESS;
+
+  console.log('🔍 Blockchain env check:', {
+    CHAIN_RPC_URL: CHAIN_RPC_URL ? '✅ Set' : '❌ Missing',
+    WALLET_PRIVATE_KEY: WALLET_PRIVATE_KEY ? '✅ Set' : '❌ Missing',
+    JOURNEY_WALLET_ADDRESS: JOURNEY_WALLET_ADDRESS ? '✅ Set' : '❌ Missing'
+  });
+
   if (!CHAIN_RPC_URL || !WALLET_PRIVATE_KEY || !JOURNEY_WALLET_ADDRESS) {
     console.warn('⚠️ Blockchain env missing – hash will not be recorded on chain');
     return null;
@@ -107,11 +114,13 @@ export async function createJourneyForCompletedDispatch(dispatch) {
   const contentHash = hashPayload(jsonString);
   const r2Key = `journeys/${poolId}.json`;
 
+  let r2Uploaded = false;
   try {
     await uploadJson(r2Key, jsonString);
+    r2Uploaded = true;
+    console.log('✅ Journey uploaded to R2:', r2Key);
   } catch (err) {
-    console.error('R2 upload failed:', err);
-    throw err;
+    console.warn('⚠️ R2 upload failed (journey will still be recorded):', err.message);
   }
 
   let txHash = null;
