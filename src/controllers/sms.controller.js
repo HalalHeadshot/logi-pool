@@ -2,7 +2,6 @@ import { saveProduce, Produce } from '../models/produce.model.js';
 import { processPooling } from '../services/pooling.service.js';
 import { extractVillageFromAddress } from '../services/location.service.js';
 import { generateGoogleMapsLink } from '../services/maps.service.js';
-import { sendSMS } from '../services/sms.gateway.js';
 
 import {
   createDispatch,
@@ -12,14 +11,24 @@ import {
 import {
   markDriverUnavailable,
   markDriverAvailable,
-  getDriverByPhone
+  getDriverByPhone,
+  Driver
 } from '../models/driver.model.js';
 
 import {
   markPoolAssigned,
   markPoolCompleted,
-  getReadyPoolForVillage
+  getReadyPoolForVillage,
+  Pool
 } from '../models/pool.model.js';
+
+import {
+  getFarmerByPhone,
+  createOrUpdateFarmer,
+  Farmer
+} from '../models/farmer.model.js';
+
+import { notifyFarmers } from '../services/notification.service.js';
 
 import {
   handleRegister,
@@ -32,12 +41,6 @@ import { createJourneyForCompletedDispatch } from '../services/journey.service.j
 function normalizePhone(phone) {
   if (!phone) return null;
   return '+' + phone.replace(/[\s+]/g, '');
-}
-
-// Helper to send SMS reply and return HTTP response
-async function sendReply(phone, message, res) {
-  await sendSMS(phone, message);
-  return res.status(200).json({ status: 'sent', message });
 }
 
 export async function handleSMS(req, res) {
@@ -59,133 +62,210 @@ export async function handleSMS(req, res) {
     console.log(`📩 SMS from ${phone}: ${upperMsg}`);
 
     // ======================
-    // HELP MENU
+    // START COMMAND
     // ======================
-    if (upperMsg === 'HELP' || upperMsg === 'MENU') {
-      return sendReply(phone,
-        'Welcome to Logi-Pool 🚜\n\n' +
-        'LOG <CROP> <QTY> | <ADDRESS>\n' +
-        'YES - Accept pickup\n' +
-        'DONE - Complete job\n' +
-        'REGISTER <SERVICE> <VILLAGE>\n' +
-        'BOOK <SERVICE> <VILLAGE>',
-        res
+    if (upperMsg === 'START') {
+      const driver = await getDriverByPhone(phone);
+      if (driver) {
+        return res.send(
+          '👨‍✈️ DRIVER MENU:\n' +
+          'AVAILABLE - Mark availability\n' +
+          'UNAVAILABLE - Mark unavailable\n' +
+          'ROUTES - View routes\n' +
+          'ROUTEDETAILS [ID] - View Details\n' +
+          'YES [ID] - Accept Route\n' +
+          'DONE - Finish Job'
+        );
+      }
+      const farmer = await getFarmerByPhone(phone);
+      if (farmer) {
+        return res.send(
+          '👨‍🌾 FARMER MENU:\n' +
+          'ADDRESS <Addr> - Set Address\n' +
+          'LOG <Crop> <Qty> <Date> - Log Produce\n' +
+          'HELP - Show this menu'
+        );
+      }
+      return res.send(
+        'Welcome to Logi-Pool!\nAre you a Driver or Farmer?\n(Contact Admin to register)'
       );
     }
 
     // ======================
-    // EQUIPMENT MODULE
+    // DRIVER COMMANDS
     // ======================
-    if (upperMsg.startsWith('REGISTER')) {
-      const [, type, village] = upperMsg.split(' ');
-      await handleRegister(type, phone, village);
-      return sendReply(phone, 'Service registered successfully', res);
-    }
-
-    if (upperMsg.startsWith('BOOK')) {
-      const [, type, village] = upperMsg.split(' ');
-      const booked = await handleBooking(type, phone, village);
-      return sendReply(phone, booked ? 'Service booked successfully' : 'No service available', res);
-    }
-
-    // ======================
-    // DRIVER COMPLETION
-    // ======================
-    if (upperMsg === 'DONE') {
-      const dispatch = await completeDispatchByDriver(phone);
-
-      if (dispatch) {
+    const driver = await getDriverByPhone(phone);
+    if (driver) {
+      if (upperMsg === 'AVAILABLE') {
         await markDriverAvailable(phone);
-        await markPoolCompleted(dispatch.poolId);
+        return res.send('You are now marked AVAILABLE.');
+      }
+      if (upperMsg === 'UNAVAILABLE') {
+        await markDriverUnavailable(phone);
+        return res.send('You are now marked UNAVAILABLE.');
+      }
+      if (upperMsg === 'ROUTES') {
+        const villageUpper = (driver.village || '').toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pools = await Pool.find({ village: new RegExp(`^${villageUpper}$`, 'i'), status: 'READY' });
+        if (pools.length === 0) return res.send('No routes available in your area.');
 
-        try {
-          await createJourneyForCompletedDispatch(dispatch);
-        } catch (err) {
-          console.error('Journey record failed:', err);
+        let response = '-------------------------------------------------\n';
+        for (const pool of pools) {
+          // Hardcoded ETA for now as requested
+          const etaPickup = '10:00 AM';
+          const etaWarehouse = '02:00 PM';
+
+          // Fetch first and last address for display
+          const produces = await Produce.find({ poolId: pool._id }).sort({ createdAt: 1 });
+          if (produces.length === 0) continue;
+
+          const pickup1 = produces[0].address;
+          const lastPickup = produces[produces.length - 1].address;
+
+          response += `RouteId : ${pool._id}\n`;
+          response += `${pickup1} -> ... -> ${lastPickup} -> Warehouse\n`;
+          response += `Date of pickups : ${new Date().toLocaleDateString()}\n`;
+          response += `Expected time of arrival at pickup 1 : ${etaPickup}\n`;
+          response += `Expected time of arrival at warehouse : ${etaWarehouse}\n`;
+          response += `Payload : ${pool.total_quantity} Kg\n`;
+          response += '-------------------------------------------------\n';
         }
-
-        return sendReply(phone, 'Transport job completed. You are now available.', res);
+        return res.send(response);
       }
 
-      await handleDone(phone);
-      return sendReply(phone, 'Service marked as completed', res);
+      if (upperMsg.startsWith('ROUTEDETAILS')) {
+        const parts = upperMsg.split(' ');
+        const poolId = parts[1];
+
+        if (!poolId) return res.send('Usage: ROUTEDETAILS <RouteId>');
+
+        const pool = await Pool.findById(poolId);
+        if (!pool) return res.send('Route not found.');
+
+        const produces = await Produce.find({ poolId: pool._id });
+
+        let details = `Route: ${pool._id}\nPayload: ${pool.total_quantity} Kg\nCustomers:\n`;
+        for (const p of produces) {
+          const f = await getFarmerByPhone(p.farmer_phone);
+          details += `- ${f?.name || 'Farmer'} (${p.farmer_phone}): ${p.quantity} Kg ${p.crop}\n`;
+        }
+        return res.send(details);
+      }
+
+      if (upperMsg.startsWith('YES')) {
+        const parts = upperMsg.split(' ');
+        const poolId = parts[1];
+        if (!poolId) return res.send('Usage: YES <RouteId>');
+
+        if (!driver.available) return res.send('You are already assigned to a pickup');
+
+        const pool = await Pool.findById(poolId);
+        if (!pool) return res.send('Route not found');
+        if (pool.status !== 'READY') return res.send('Route not available');
+
+        // Generate Map Link
+        const produces = await Produce.find({ poolId: pool._id }).sort({ createdAt: 1 });
+        const stops = produces.map(p => p.address);
+        const mapLink = generateGoogleMapsLink(stops);
+
+        await createDispatch(
+          pool.category,
+          pool.village,
+          pool.total_quantity,
+          phone,
+          pool.crops,
+          pool._id
+        );
+
+        await markDriverUnavailable(phone);
+        await markPoolAssigned(pool._id);
+
+        // NOTIFY FARMERS
+        const arrivalTime = '10:00 AM'; // Hardcoded as per request
+        await notifyFarmers(pool._id,
+          `DRIVER ACQUIRED : ${phone}\n` +
+          `DATE : ${new Date().toLocaleDateString()}\n` +
+          `EXPECTED TIME OF ARRIVAL : ${arrivalTime}`
+        );
+
+        return res.send(
+          `Route Assigned!\n` +
+          `Map: ${mapLink}`
+        );
+      }
+
+      if (upperMsg === 'DONE') {
+        const dispatch = await completeDispatchByDriver(phone);
+        if (dispatch) {
+          await markDriverAvailable(phone);
+          await markPoolCompleted(dispatch.poolId);
+          try { await createJourneyForCompletedDispatch(dispatch); } catch (e) { }
+          return res.send('Transport job completed. You are now available.');
+        }
+        await handleDone(phone);
+        return res.send('Service marked as completed');
+      }
     }
 
     // ======================
-    // DRIVER ACCEPTS PICKUP
+    // FARMER COMMANDS
     // ======================
-    if (upperMsg === 'YES') {
-      const driver = await getDriverByPhone(phone);
-      if (!driver) return sendReply(phone, 'Driver not registered', res);
-      if (!driver.available) return sendReply(phone, 'You are already assigned to a pickup', res);
-
-      const readyPool = await getReadyPoolForVillage(driver.village);
-      if (!readyPool) return sendReply(phone, 'No pickup available in your area right now', res);
-
-      // Fetch produce stops and sort by oldest produce first (priority)
-      const produces = await Produce.find({ poolId: readyPool._id }).sort({ createdAt: 1 });
-      const stops = produces.map(p => p.address);
-
-      const hoursLeft = Math.max(
-        0,
-        Math.round((new Date(readyPool.expiresAt) - new Date()) / (1000 * 60 * 60))
-      );
-
-      const mapLink = generateGoogleMapsLink(stops);
-
-      await createDispatch(
-        readyPool.category,
-        readyPool.village,
-        readyPool.total_quantity,
-        phone,
-        readyPool.crops,
-        readyPool._id
-      );
-
-      await markDriverUnavailable(phone);
-      await markPoolAssigned(readyPool._id);
-
-      return sendReply(phone,
-        `Pickup in ${readyPool.village}\n` +
-        `Finish within ${hoursLeft} hrs\n\n` +
-        `Stops (priority order):\n${stops.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n` +
-        `Navigate: ${mapLink}`,
-        res
-      );
+    if (upperMsg === 'HELP') {
+      const farmer = await getFarmerByPhone(phone);
+      if (farmer) {
+        return res.send(
+          '👨‍🌾 FARMER MENU:\n' +
+          'ADDRESS <Addr> - Set Address\n' +
+          'LOG <Crop> <Qty> <Date> - Log Produce\n' +
+          'HELP - Show this menu'
+        );
+      }
+      return res.send('Send START to begin. Or ADDRESS <your address> to register.');
     }
 
-    // ======================
-    // FARMER LOG WITH ADDRESS
-    // ======================
+    if (upperMsg.startsWith('ADDRESS')) {
+      const address = message.substring(7).trim(); // Remove 'ADDRESS'
+      if (!address) return res.send('Usage: ADDRESS <Your Address>');
+
+      const village = await extractVillageFromAddress(address);
+      await createOrUpdateFarmer(phone, address, village);
+      return res.send(`Address updated: ${address}\nVillage detected: ${village}`);
+    }
+
     if (upperMsg.startsWith('LOG')) {
-      const [left, address] = message.split('|');
-      if (!address) return sendReply(phone, 'Format: LOG <CROP> <QTY> | <ADDRESS>', res);
+      // Format: LOG <CROP> <QTY> <DATE>
+      const parts = message.split(' ');
+      if (parts.length < 4) return res.send('Usage: LOG <Item> <Weight> <Date>');
 
-      const parts = left.trim().split(' ');
-      if (parts.length !== 3) return sendReply(phone, 'Format: LOG <CROP> <QTY> | <ADDRESS>', res);
+      const crop = parts[1];
+      const weight = parseInt(parts[2]);
+      const dateStr = parts.slice(3).join(' ');
 
-      const [, crop, qty] = parts;
-      const quantity = parseInt(qty);
-      if (isNaN(quantity)) return sendReply(phone, 'Invalid quantity', res);
+      if (isNaN(weight)) return res.send('Invalid weight');
 
-      const village = await extractVillageFromAddress(address.trim());
+      // Farmer must have address
+      const farmer = await getFarmerByPhone(phone);
+      if (!farmer || !farmer.address) {
+        return res.send('Please set address first using ADDRESS command');
+      }
 
-      await saveProduce(phone, crop.toUpperCase(), quantity, address.trim(), village);
-      const ready = await processPooling(crop.toUpperCase(), village, quantity);
+      const readyDate = new Date(dateStr);
 
-      return sendReply(phone,
-        ready
-          ? 'Pool ready. Drivers notified.'
-          : `Produce logged for ${village}. Waiting for others.`,
-        res
+      await saveProduce(phone, crop.toUpperCase(), weight, farmer.address, farmer.village, readyDate);
+
+      // Trigger Pooling (returns poolId and isReady)
+      const { poolId } = await processPooling(crop.toUpperCase(), farmer.village, weight);
+
+      return res.send(
+        `ADDED TO POOL : #${poolId}\n` +
+        `Expected arrival date : ${readyDate.toLocaleDateString()}`
       );
     }
 
-    return sendReply(phone, 'Invalid command', res);
+    return res.send('Invalid command or not registered.');
 
   } catch (err) {
     console.error(err);
-    await sendSMS(phone, 'Server error');
-    res.status(500).json({ error: 'Server error' });
+    res.send('Server error');
   }
 }

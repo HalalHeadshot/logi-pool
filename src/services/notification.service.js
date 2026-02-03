@@ -30,3 +30,21 @@ export async function notifyDrivers(crop, village, quantity) {
   const sent = results.filter(r => r.success).length;
   console.log(`📊 Notifications: ${sent}/${drivers.length} SMS sent successfully`);
 }
+
+import { Produce } from '../models/produce.model.js';
+
+export async function notifyFarmers(poolId, message) {
+  // Find all produce in this pool to get farmer phones
+  const produces = await Produce.find({ poolId });
+  const uniquePhones = [...new Set(produces.map(p => p.farmer_phone))];
+
+  if (uniquePhones.length === 0) return;
+
+  console.log(`📢 Notifying ${uniquePhones.length} farmers about pool update...`);
+
+  const smsPromises = uniquePhones.map(async (phone) => {
+    return await sendSMS(phone, message);
+  });
+
+  await Promise.all(smsPromises);
+}

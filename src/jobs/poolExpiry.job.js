@@ -1,5 +1,5 @@
 import { Pool, markPoolReady } from '../models/pool.model.js';
-import { notifyDrivers } from '../services/notification.service.js';
+import { notifyDrivers, notifyFarmers } from '../services/notification.service.js';
 
 export async function checkExpiredPools() {
   try {
@@ -15,6 +15,7 @@ export async function checkExpiredPools() {
 
       await markPoolReady(pool._id);
       await notifyDrivers(pool.category, pool.village, pool.total_quantity);
+      await notifyFarmers(pool._id, 'POOL IS FULL, WAITING ON DRIVER..');
 
       console.log(`🚚 Auto-dispatched expired pool ${pool._id}`);
     }
