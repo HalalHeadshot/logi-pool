@@ -11,17 +11,17 @@ import {
 } from '../models/serviceBooking.model.js';
 
 // Register a service (owner flow)
-export async function handleRegister(type, phone, village) {
-  await registerService(type, phone, village);
+export async function handleRegister(type, phone, village, ownerName = 'Owner', address = '', pricePerHour = 0) {
+  await registerService(type, phone, village, ownerName, address, pricePerHour);
 }
 
-// Book a service (farmer flow)
+// Book a service (farmer flow) - Simple version for backward compatibility
 export async function handleBooking(type, farmerPhone, village) {
   const service = await getAvailableService(type, village);
   if (!service) return false;
 
-  await markServiceUnavailable(service.id);
-  await createBooking(service.id, farmerPhone, village);
+  await markServiceUnavailable(service._id);
+  await createBooking(service._id, farmerPhone, village);
   return true;
 }
 

@@ -221,9 +221,101 @@ curl -X POST http://localhost:3000/sms \
 
 ---
 
+## 🚜 Equipment Rental Commands (Shared Plough Integration)
+
+These commands enable equipment owners to register agricultural services and farmers to rent them.
+
+---
+
+### REGISTER \<type\> \<address\> \<price\> \<phone\> \<owner\>
+
+Register agricultural equipment for rent. Types: TRACTOR, PLOUGH, LABOUR, WAREHOUSE
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"REGISTER TRACTOR 14th Street Whitefield Bangalore 600 9876543210 RAMESH","sender":"+919876543210"}}'
+```
+
+**Expected:** Service registered with ID, village extracted from address, price confirmed.
+
+---
+
+### RENT \<type\> \<hours\> \<phone\> \<address\> [date]
+
+Rent equipment for specified hours. Date is optional (defaults to now).
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10","sender":"+919123456789"}}'
+```
+
+**Expected:** Booking confirmed with owner details, pricing, and Google Maps link.
+
+**If all equipment booked:** Shows "Earliest Available" time.
+
+---
+
+### AVAILABLE \<village\>
+
+Check available equipment in a specific village.
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"AVAILABLE BANGALORE","sender":"+919123456789"}}'
+```
+
+**Expected:** List of available services with owner name, price, and phone.
+
+---
+
+### MYSERVICES \<phone\>
+
+View equipment registered by an owner.
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"MYSERVICES 9876543210","sender":"+919876543210"}}'
+```
+
+**Expected:** List of services with type, village, price, and availability status.
+
+---
+
+### MYBOOKINGS \<phone\>
+
+View farmer's equipment booking history.
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"MYBOOKINGS 9123456789","sender":"+919123456789"}}'
+```
+
+**Expected:** Last 5 bookings with type, status, price, and date.
+
+---
+
+### STATS
+
+View system statistics for equipment services.
+
+```bash
+curl -X POST http://localhost:3000/sms \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"message":"STATS","sender":"+919999999999"}}'
+```
+
+**Expected:** Total services, available count, total bookings, active bookings.
+
+---
+
 ## Typical Flow
 
-### Farmer flow
+### Farmer flow (Produce Logistics)
 
 1. `ADDRESS 123 Farm Road, Rampur`
 2. `LOG WHEAT 100 2023-10-25`
@@ -237,3 +329,17 @@ curl -X POST http://localhost:3000/sms \
 3. `ROUTEDETAILS \<id\>` (optional)
 4. `YES \<id\>` to accept
 5. `DONE` when delivery complete (→ blockchain record)
+
+### Equipment Owner flow
+
+1. `REGISTER TRACTOR 14th Street Bangalore 600 9876543210 RAMESH`
+2. `MYSERVICES 9876543210` to view registered equipment
+3. When booked: receives Google Maps link to farmer location
+4. Equipment auto-released when booking period expires
+
+### Farmer flow (Equipment Rental)
+
+1. `AVAILABLE BANGALORE` - Check what's available
+2. `RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10`
+3. Receives booking confirmation with owner contact
+4. `MYBOOKINGS 9123456789` to view history

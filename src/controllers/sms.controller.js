@@ -31,17 +31,28 @@ import {
 
 import { notifyFarmers } from '../services/notification.service.js';
 
-import {
-  handleRegister,
-  handleBooking,
-  handleDone
-} from '../services/equipment.service.js';
-
 import { createJourneyForCompletedDispatch } from '../services/journey.service.js';
+
+// Import new equipment controller functions
+import {
+  bookEquipment,
+  registerEquipment,
+  getAvailableEquipment,
+  getMyServices,
+  getMyBookings,
+  getSystemStats,
+  handleEquipmentDone
+} from './equipment.controller.js';
 
 function normalizePhone(phone) {
   if (!phone) return null;
-  return '+' + phone.replace(/[\s+]/g, '');
+  // Remove all spaces and + signs
+  let cleaned = phone.replace(/[\s+]/g, '');
+  // Add + prefix if not present
+  if (!cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned;
+  }
+  return cleaned;
 }
 
 // Helper to send SMS reply and return HTTP response
@@ -91,12 +102,33 @@ export async function handleSMS(req, res) {
           '👨‍🌾 FARMER MENU:\n' +
           'ADDRESS <Addr> - Set Address\n' +
           'LOG <Crop> <Qty> <Date> - Log Produce\n' +
+          'AVAILABLE <Village> - Check Equipment\n' +
+          'RENT <Type> <Hrs> <Phone> <Addr> [Date]\n' +
+          'MYBOOKINGS <Phone> - View Bookings\n' +
           'HELP - Show this menu',
           res
         );
       }
       return sendReply(phone,
-        'Welcome to Logi-Pool!\nAre you a Driver or Farmer?\n(Contact Admin to register)',
+        'Welcome to Logi-Pool!\nAre you a Driver or Farmer?\n(Contact Admin to register)\n\n🚜 Equipment Owner?\nREGISTER <Type> <Addr> <Price> <Phone> <Name>',
+        res
+      );
+    }
+
+    // ======================
+    // STATS COMMAND (Universal)
+    // ======================
+    if (upperMsg === 'STATS') {
+      const stats = await getSystemStats();
+      if (!stats.success) {
+        return sendReply(phone, stats.message, res);
+      }
+      return sendReply(phone,
+        `📊 SYSTEM STATS:\n` +
+        `Total Services: ${stats.totalServices}\n` +
+        `Available: ${stats.availableServices}\n` +
+        `Total Bookings: ${stats.totalBookings}\n` +
+        `Active: ${stats.activeBookings}`,
         res
       );
     }
@@ -213,9 +245,235 @@ export async function handleSMS(req, res) {
           try { await createJourneyForCompletedDispatch(dispatch); } catch (e) { console.error('❌ Journey creation failed:', e.message); }
           return sendReply(phone, 'Transport job completed. You are now available.', res);
         }
-        await handleDone(phone);
+        await handleEquipmentDone(phone);
         return sendReply(phone, 'Service marked as completed', res);
       }
+    }
+
+    // ======================
+    // EQUIPMENT COMMANDS (Available to all)
+    // ======================
+
+    // REGISTER command - Equipment owner registration
+    if (upperMsg.startsWith('REGISTER') || upperMsg.startsWith('REG ')) {
+      // Format: REGISTER <type> <address> <price> <phone> <name>
+      const parts = message.split(/\s+/);
+
+      if (parts.length < 6) {
+        return sendReply(phone,
+          '❌ Format: REGISTER <type> <address> <price> <phone> <name>\n' +
+          'Example: REGISTER TRACTOR 14th Street Bangalore 600 9876543210 RAMESH',
+          res
+        );
+      }
+
+      const type = parts[1];
+
+      // Extract price & phone from fixed positions (last 3 elements before name)
+      const price = parseFloat(parts[parts.length - 3]);
+      const ownerPhone = parts[parts.length - 2];
+      const ownerName = parts[parts.length - 1];
+
+      if (isNaN(price) || price <= 0) {
+        return sendReply(phone, '❌ Invalid price. Example: REGISTER TRACTOR MUMBAI 600 9876543210 RAMESH', res);
+      }
+
+      if (!ownerPhone || ownerPhone.length < 10) {
+        return sendReply(phone, '❌ Invalid phone number. Must be at least 10 digits.', res);
+      }
+
+      // Everything between TYPE and PRICE is treated as address
+      const addressParts = parts.slice(2, -3);
+      const address = addressParts.join(' ');
+
+      if (!address) {
+        return sendReply(phone, '❌ Address is required.', res);
+      }
+
+      const result = await registerEquipment(type, address, price, ownerPhone, ownerName);
+
+      if (!result.success) {
+        return sendReply(phone, result.message, res);
+      }
+
+      const s = result.service;
+      return sendReply(phone,
+        `${result.message}\n` +
+        `🚜 Type: ${s.type}\n` +
+        `👤 Owner: ${s.owner_name}\n` +
+        `📍 Village: ${s.village}\n` +
+        `📌 Address: ${s.address}\n` +
+        `💰 Price: ₹${s.price_per_hour}/hr\n` +
+        `🆔 ID: ${s._id}\n` +
+        `Status: Available for rent`,
+        res
+      );
+    }
+
+    // RENT command - Book equipment
+    if (upperMsg.startsWith('RENT')) {
+      // Format: RENT <type> <hours> <phone> <address> [date]
+      const parts = message.split(/\s+/);
+
+      if (parts.length < 5) {
+        return sendReply(phone,
+          '❌ Format: RENT <type> <hours> <phone> <address> [date]\n' +
+          'Example: RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10',
+          res
+        );
+      }
+
+      const type = parts[1];
+      let hours = parts[2].replace(/HRS?/i, '');
+      const farmerPhone = parts[3];
+
+      hours = parseInt(hours);
+      if (isNaN(hours) || hours <= 0) {
+        return sendReply(phone, '❌ Invalid hours.', res);
+      }
+
+      if (!farmerPhone || farmerPhone.length < 10) {
+        return sendReply(phone, '❌ Invalid phone number.', res);
+      }
+
+      // Parse Address & Optional Date
+      let addressParts = parts.slice(4);
+
+      // Check if last part is a date (YYYY-MM-DD)
+      const lastPart = addressParts[addressParts.length - 1];
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+      let startTime = new Date();
+      if (dateRegex.test(lastPart)) {
+        const parsedDate = new Date(lastPart);
+        if (!isNaN(parsedDate.getTime())) {
+          startTime = parsedDate;
+          addressParts.pop(); // Remove date from address
+        }
+      }
+
+      const farmerAddress = addressParts.join(' ');
+
+      if (!farmerAddress) {
+        return sendReply(phone, '❌ Address is required.', res);
+      }
+
+      const result = await bookEquipment(type, hours, farmerPhone, farmerAddress, startTime);
+
+      if (!result.success) {
+        let msg = result.message;
+        if (result.earliest_available_at) {
+          const availableAt = new Date(result.earliest_available_at);
+          msg += `\n\n⏰ Earliest Available: ${availableAt.toLocaleString('en-IN', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          })}`;
+          msg += `\n💡 Try booking after this time!`;
+        }
+        return sendReply(phone, msg, res);
+      }
+
+      // Build success response
+      const s = result.service;
+      const b = result.booking;
+
+      let msg = `${result.message}\n`;
+      msg += `👤 Owner: ${s.owner_name}\n`;
+      msg += `📍 Village: ${s.village}\n`;
+      msg += `📞 Phone: ${s.phone}\n`;
+      msg += `💰 Original: ₹${b.original_price}\n`;
+      if (b.discount_percentage > 0) {
+        msg += `🎉 Discount: ${b.discount_percentage}% (₹${b.discount_amount} off)\n`;
+      }
+      msg += `💵 Total Pay: ₹${b.final_price}\n`;
+      msg += `🆔 Booking ID: ${b._id}\n`;
+
+      const start = new Date(b.start_time);
+      const end = new Date(b.end_time);
+      msg += `⏰ Start: ${start.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+      msg += `⏱️ End: ${end.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+
+      if (result.maps_link) {
+        msg += `\n🗺️ GOOGLE MAPS LINK FOR OWNER:\n${result.maps_link}`;
+      }
+
+      return sendReply(phone, msg, res);
+    }
+
+    // AVAILABLE <village> - Check equipment in village
+    if (upperMsg.startsWith('AVAILABLE ') && upperMsg.split(' ').length >= 2) {
+      const parts = upperMsg.split(' ');
+      const village = parts[1];
+
+      if (!village) {
+        return sendReply(phone, '❌ Format: AVAILABLE <village>\nExample: AVAILABLE BANGALORE', res);
+      }
+
+      const result = await getAvailableEquipment(village);
+
+      if (!result.success) {
+        return sendReply(phone, result.message, res);
+      }
+
+      let msg = `🔍 Available in ${result.village} (${result.count}):\n`;
+      result.services.forEach((s, i) => {
+        msg += `\n${i + 1}. ${s.type}`;
+        msg += `\n   Owner: ${s.owner_name}`;
+        msg += `\n   ₹${s.price_per_hour}/hr`;
+        msg += `\n   Ph: ${s.phone}`;
+      });
+
+      return sendReply(phone, msg, res);
+    }
+
+    // MYSERVICES <phone> - View owner's services
+    if (upperMsg.startsWith('MYSERVICES') || upperMsg.startsWith('MS ')) {
+      const parts = upperMsg.split(' ');
+      const queryPhone = parts[1] ? normalizePhone(parts[1]) : phone;
+
+      if (!queryPhone || queryPhone.length < 10) {
+        return sendReply(phone, '❌ Format: MYSERVICES <phone>\nExample: MYSERVICES 9876543210', res);
+      }
+
+      const result = await getMyServices(queryPhone);
+
+      if (!result.success) {
+        return sendReply(phone, result.message, res);
+      }
+
+      let msg = `📋 Your Services (${result.count}):\n`;
+      result.services.forEach((s, i) => {
+        msg += `\n${i + 1}. ${s.type} - ${s.village}`;
+        msg += `\n   ₹${s.price_per_hour}/hr`;
+        msg += `\n   ${s.available ? '✅ Available' : '🔴 Booked'}`;
+      });
+
+      return sendReply(phone, msg, res);
+    }
+
+    // MYBOOKINGS <phone> - View farmer's bookings
+    if (upperMsg.startsWith('MYBOOKINGS') || upperMsg.startsWith('MB ')) {
+      const parts = upperMsg.split(' ');
+      const queryPhone = parts[1] || phone.replace(/^\+/, '');
+
+      if (!queryPhone || queryPhone.length < 10) {
+        return sendReply(phone, '❌ Format: MYBOOKINGS <phone>\nExample: MYBOOKINGS 9123456789', res);
+      }
+
+      const result = await getMyBookings(queryPhone);
+
+      if (!result.success) {
+        return sendReply(phone, result.message, res);
+      }
+
+      let msg = `📚 Your Bookings (Last ${result.count}):\n`;
+      result.bookings.forEach((b, i) => {
+        msg += `\n${i + 1}. ${b.type} - ${b.status}`;
+        msg += `\n   ₹${b.final_price}`;
+        msg += `\n   ${new Date(b.date).toLocaleDateString()}`;
+      });
+
+      return sendReply(phone, msg, res);
     }
 
     // ======================
@@ -228,11 +486,24 @@ export async function handleSMS(req, res) {
           '👨‍🌾 FARMER MENU:\n' +
           'ADDRESS <Addr> - Set Address\n' +
           'LOG <Crop> <Qty> <Date> - Log Produce\n' +
-          'HELP - Show this menu',
+          'AVAILABLE <Village> - Check Equipment\n' +
+          'RENT <Type> <Hrs> <Phone> <Addr> [Date]\n' +
+          'MYBOOKINGS <Phone> - View Bookings\n' +
+          'HELP - Show this menu\n\n' +
+          '🚜 EQUIPMENT OWNER:\n' +
+          'REGISTER <Type> <Addr> <Price> <Phone> <Name>\n' +
+          'MYSERVICES <Phone> - View Services\n' +
+          'STATS - System Statistics',
           res
         );
       }
-      return sendReply(phone, 'Send START to begin. Or ADDRESS <your address> to register.', res);
+      return sendReply(phone,
+        'Send START to begin.\n' +
+        'Or ADDRESS <your address> to register.\n\n' +
+        '🚜 Equipment Owner?\n' +
+        'REGISTER <Type> <Addr> <Price> <Phone> <Name>',
+        res
+      );
     }
 
     if (upperMsg.startsWith('ADDRESS')) {
