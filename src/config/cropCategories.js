@@ -11,5 +11,6 @@ export const CROP_CATEGORIES = {
   CORIANDER: 'LEAFY',
 
   MANGO: 'FRUIT',
-  BANANA: 'FRUIT'
+  BANANA: 'FRUIT',
+  APPLE: 'FRUIT'
 };

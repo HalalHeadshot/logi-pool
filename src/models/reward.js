@@ -265,4 +265,4 @@ export async function processRewardUtilization(farmerPhone, produceWeight) {
     }
 
     return { used: 0, remaining: farmer.reward_kg_balance, applied: false };
-} ush
+}

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Pool } from '../models/pool.model.js';
 import { Produce } from '../models/produce.model.js';
 import { uploadJson, getJson } from './r2.service.js';
-import { createJourneyRecord } from '../models/journey.model.js';
+import { createJourneyRecord, Journey } from '../models/journey.model.js';
 
 function buildCanonicalPayload(pool, dispatch, produceList) {
   const contributions = produceList.map((p) => ({
@@ -114,27 +114,20 @@ export async function createJourneyForCompletedDispatch(dispatch) {
   const contentHash = hashPayload(jsonString);
   const r2Key = `journeys/${poolId}.json`;
 
-  let r2Uploaded = false;
+  // 1. Upload to R2 (blocks because we need common storage)
   try {
     await uploadJson(r2Key, jsonString);
-    r2Uploaded = true;
     console.log('✅ Journey uploaded to R2:', r2Key);
   } catch (err) {
-    console.warn('⚠️ R2 upload failed (journey will still be recorded):', err.message);
+    console.warn('⚠️ R2 upload failed:', err.message);
   }
 
-  let txHash = null;
-  try {
-    txHash = await recordHashOnChain(contentHash);
-  } catch (err) {
-    console.error('Blockchain record failed:', err);
-  }
-
-  await createJourneyRecord({
+  // 2. Create the Database Record FIRST (so it exists even if chain is slow)
+  const journey = await createJourneyRecord({
     journeyId: poolId,
     r2Key,
     contentHash,
-    txHash,
+    txHash: null, // Will update later
     poolId,
     completedAt: new Date(),
     display: {
@@ -146,7 +139,18 @@ export async function createJourneyForCompletedDispatch(dispatch) {
     }
   });
 
-  return { journeyId: poolId, contentHash, txHash, r2Key };
+  // 3. Record on blockchain in the background
+  // We don't await this so the SMS response is fast
+  recordHashOnChain(contentHash).then(async (txHash) => {
+    if (txHash) {
+      await Journey.findByIdAndUpdate(journey._id, { txHash });
+      console.log(`⛓️ Blockchain record for journey ${poolId}:`, txHash);
+    }
+  }).catch(err => {
+    console.error('❌ Blockchain record background task failed:', err.message);
+  });
+
+  return { journeyId: poolId, contentHash, r2Key };
 }
 
 export async function getJourneyJson(r2Key) {
