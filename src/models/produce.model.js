@@ -34,3 +34,30 @@ export async function assignProduceToPool(poolId, village, crop) {
     { poolId }
   );
 }
+
+/**
+ * Calculate degradation percentage for a produce item.
+ * 0% = freshly created, 100% = at or past readyBy date.
+ * @param {Object} produce - Produce document with createdAt and readyBy.
+ * @param {Date} now - Current time.
+ * @returns {number} Degradation percentage (0-100).
+ */
+export function getDegradation(produce, now = new Date()) {
+  const createdAt = new Date(produce.createdAt);
+  const readyBy = new Date(produce.readyBy || produce.ready_date);
+
+  // If no valid dates, return 0
+  if (isNaN(createdAt.getTime()) || isNaN(readyBy.getTime())) {
+    return 0;
+  }
+
+  const totalWindow = readyBy.getTime() - createdAt.getTime();
+  if (totalWindow <= 0) {
+    return 100; // Already expired or same day
+  }
+
+  const elapsed = now.getTime() - createdAt.getTime();
+  const percentage = (elapsed / totalWindow) * 100;
+
+  return Math.min(100, Math.max(0, percentage));
+}

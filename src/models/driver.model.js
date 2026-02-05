@@ -4,6 +4,11 @@ const driverSchema = new mongoose.Schema({
   name: String,
   phone: String,
   village: String,
+  vehicleType: {
+    type: String,
+    enum: ['REGULAR', 'LARGE'],
+    default: 'REGULAR'
+  },
   available: {
     type: Boolean,
     default: true
@@ -18,9 +23,13 @@ export async function getDriverByPhone(phone) {
   return await Driver.findOne({ phone: normalizedPhone });
 }
 
-// Get all available drivers in a village
-export async function getAvailableDrivers(village) {
-  return await Driver.find({ village, available: true });
+// Get all available drivers in a village, optionally filtered by vehicle type
+export async function getAvailableDrivers(village, vehicleType = null) {
+  const query = { village, available: true };
+  if (vehicleType) {
+    query.vehicleType = vehicleType;
+  }
+  return await Driver.find(query);
 }
 
 export async function markDriverAvailable(phone) {

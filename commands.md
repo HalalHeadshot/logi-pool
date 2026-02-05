@@ -1,41 +1,34 @@
 # SMS Commands Reference
 
-This document lists all SMS commands for the Logi-Pool system, with explanations and cURL examples for testing via the API.
+This document lists all SMS commands for the Logi-Pool system, including the new **Payload Size & Priority Pooling** workflow.
 
-**Base URL:** `http://localhost:3000/sms` (or your deployed URL)
-
-**Request format:** POST with JSON body. The SMS gateway typically sends:
-- `data.message` or `message` – the SMS text
-- `data.sender` or `sender` – the phone number (e.g. `+919999999999`)
+**Base URL:** `http://localhost:3000/sms/webhook`
+**Request format:** POST with JSON body.
 
 ---
 
-## Blockchain Integration
+## 🚚 Truck & Priority Logic (New)
 
-Yes, **the SMS workflow works with the blockchain**. When a driver sends **DONE** to complete a transport job:
+The system now supports **Intelligent Dispatch** based on produce degradation (freshness) and quantity:
 
-1. The dispatch is marked completed
-2. `createJourneyForCompletedDispatch()` builds a canonical payload (pool, dispatch, farmer contributions)
-3. The payload is hashed (SHA-256), uploaded to R2, and the hash is recorded on **Polygon (Amoy testnet)** via a zero-value transaction
-4. This provides immutable verification that the journey was completed
-
-If blockchain env vars are missing (`CHAIN_RPC_URL`, `WALLET_PRIVATE_KEY`, `JOURNEY_WALLET_ADDRESS`), the system skips on-chain recording but the journey still completes.
+| Scenario | Degradation | Capacity Needed | Truck Type | Priority |
+|---|---|---|---|---|
+| **Bulk / Fresh** | Low (< 50%) | 2500 kg | **LARGE** | Standard |
+| **High Priority** | High (>= 50%) | 1000 kg | **REGULAR** | High |
+| **Critical** | Critical (>= 90%) | Any | **REGULAR** | **FORCE DISPATCH** |
 
 ---
 
 ## Generic / Unknown User
 
 ### START
-
-Shows menu based on user type. If the phone is not registered as Driver or Farmer, shows a generic welcome.
+Shows menu based on user type.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"START","sender":"+911111111111"}}'
+  -d '{"From":"+911111111111","Body":"START"}'
 ```
-
-**Expected:** "Welcome to Logi-Pool! Are you a Driver or Farmer? (Contact Admin to register)"
 
 ---
 
@@ -43,303 +36,156 @@ curl -X POST http://localhost:3000/sms \
 
 Farmers must set their **ADDRESS** before using **LOG**.
 
-### START (Farmer)
-
-Shows the Farmer menu. The phone must exist in the Farmer collection (created via ADDRESS).
-
-```bash
-curl -X POST http://localhost:3000/sms \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"message":"START","sender":"+919999999999"}}'
-```
-
-**Expected:** Farmer menu with ADDRESS, LOG, HELP options.
-
----
-
-### ADDRESS \<address\>
-
-Save or update the farmer's pickup address. Creates the farmer record if it doesn't exist. Village is extracted from the address (via location service).
+### ADDRESS <address>
+Save or update the farmer's pickup address.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"ADDRESS 123 Farm Road, Rampur","sender":"+919999999999"}}'
+  -d '{"From":"+919999999999","Body":"ADDRESS 123 Farm Road, Rampur"}'
 ```
 
-**Expected:** "Address updated: 123 Farm Road, Rampur" (and village if extracted)
+### LOG <crop> <quantity> <date>
+Log produce with a "ready by" date. **The date determines priority.**
 
----
-
-### LOG \<crop\> \<quantity\> \<date\>
-
-Log produce with a "ready by" date. **Requires ADDRESS to be set first.**
-
-- **crop:** e.g. WHEAT, RICE, TOMATO, POTATO
-- **quantity:** weight in kg
-- **date:** ready-by date (e.g. 2023-10-25)
-
+**Scenario 1: Bulk Fresh Produce (triggers LARGE truck)**
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"LOG WHEAT 100 2023-10-25","sender":"+919999999999"}}'
+  -d '{"From":"+919999999999","Body":"LOG WHEAT 1500 2026-02-10"}'
 ```
+*(Log twice to reach 2500kg threshold)*
 
-**Expected:** "ADDED TO POOL : #\<poolId\>" plus expected arrival date
-
-**If no address set:**
-
+**Scenario 2: High Priority / Degrading (triggers REGULAR truck)**
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"LOG POTATO 50 2024-01-15","sender":"+911111111111"}}'
+  -d '{"From":"+919999999999","Body":"LOG TOMATO 600 2026-02-05"}'
 ```
+*(If date is today/tomorrow, priority increases)*
 
-**Expected:** "Please set address first using ADDRESS command"
-
----
+**Scenario 3: Critical / Expired (Force Dispatch)**
+```bash
+curl -X POST http://localhost:3000/sms/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"From":"+919999999999","Body":"LOG SPINACH 100 2026-02-03"}'
+```
+*(Past date = 100% degradation = Immediate Dispatch)*
 
 ### HELP
-
-Shows the Farmer menu again. Useful for registered farmers who forget the commands.
+Shows the Farmer menu.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"HELP","sender":"+919999999999"}}'
+  -d '{"From":"+919999999999","Body":"HELP"}'
 ```
-
-**Expected:** Farmer menu (ADDRESS, LOG, HELP)
 
 ---
 
 ## Driver Commands
 
-Drivers must be pre-registered in the Driver collection (e.g. via seed script or admin).
+Drivers are pre-registered with a `vehicleType` (**REGULAR** or **LARGE**). They only receive notifications for pools matching their truck type.
 
-### START (Driver)
-
+### START
 Shows the Driver menu.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"START","sender":"+918888888888"}}'
+  -d '{"From":"+918888888888","Body":"START"}'
 ```
-
-**Expected:** Driver menu with AVAILABLE, UNAVAILABLE, ROUTES, ROUTEDETAILS, YES, DONE
-
----
 
 ### AVAILABLE
-
-Mark the driver as available for route assignment.
-
-```bash
-curl -X POST http://localhost:3000/sms \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"message":"AVAILABLE","sender":"+918888888888"}}'
-```
-
-**Expected:** "You are now marked AVAILABLE."
-
----
-
-### UNAVAILABLE
-
-Mark the driver as unavailable.
+Mark as available.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"UNAVAILABLE","sender":"+918888888888"}}'
+  -d '{"From":"+918888888888","Body":"AVAILABLE"}'
 ```
-
-**Expected:** "You are now marked UNAVAILABLE."
-
----
 
 ### ROUTES
-
-List all READY pools (routes) in the driver's village with hardcoded ETAs.
-
-```bash
-curl -X POST http://localhost:3000/sms \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"message":"ROUTES","sender":"+918888888888"}}'
-```
-
-**Expected:** List of routes with RouteId, pickup addresses, payload, ETA
-
-**If none:** "No routes available in your area."
-
----
-
-### ROUTEDETAILS \<poolId\>
-
-Show detailed info for a specific pool: crop, total weight, farmer contacts.
+List READY pools (filtered by driver's truck type).
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"ROUTEDETAILS 69823f2d340b482fdf7c8a7e","sender":"+918888888888"}}'
+  -d '{"From":"+918888888888","Body":"ROUTES"}'
 ```
 
-**Expected:** Route details, payload, list of customers (farmer name/phone, quantity, crop)
-
----
-
-### YES \<poolId\>
-
-Accept and assign a specific route. Driver receives a Google Maps link for pickups.
+### YES <poolId>
+Accept a route.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"YES 69823f2d340b482fdf7c8a7e","sender":"+918888888888"}}'
+  -d '{"From":"+918888888888","Body":"YES 65df..."}'
 ```
-
-**Expected:** "Route Assigned!" plus map URL
-
-**Side effects:** Farmers are notified "DRIVER ACQUIRED" with driver details and ETA.
-
----
 
 ### DONE
-
-Mark the transport job as completed. **Triggers blockchain recording** of the journey hash.
-
-```bash
-curl -X POST http://localhost:3000/sms \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"message":"DONE","sender":"+918888888888"}}'
-```
-
-**Expected:** "Transport job completed. You are now available."
-
-**Side effects:** Journey payload is hashed, uploaded to R2, and hash recorded on Polygon blockchain (if configured).
-
----
-
-## 🚜 Equipment Rental Commands (Shared Plough Integration)
-
-These commands enable equipment owners to register agricultural services and farmers to rent them.
-
----
-
-### REGISTER \<type\> \<address\> \<price\> \<phone\> \<owner\>
-
-Register agricultural equipment for rent. Types: TRACTOR, PLOUGH, LABOUR, WAREHOUSE
+Complete job (triggers blockchain record).
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"REGISTER TRACTOR 14th Street Whitefield Bangalore 600 9876543210 RAMESH","sender":"+919876543210"}}'
+  -d '{"From":"+918888888888","Body":"DONE"}'
 ```
-
-**Expected:** Service registered with ID, village extracted from address, price confirmed.
 
 ---
 
-### RENT \<type\> \<hours\> \<phone\> \<address\> [date]
+## Equipment Rental Commands
 
-Rent equipment for specified hours. Date is optional (defaults to now).
+### REGISTER <type> <address> <price> <phone> <name>
+Register equipment (TRACTOR, PLOUGH, etc).
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10","sender":"+919123456789"}}'
+  -d '{"From":"+919876543210","Body":"REGISTER TRACTOR 14th St Bangalore 600 9876543210 RAMESH"}'
 ```
 
-**Expected:** Booking confirmed with owner details, pricing, and Google Maps link.
-
-**If all equipment booked:** Shows "Earliest Available" time.
-
----
-
-### AVAILABLE \<village\>
-
-Check available equipment in a specific village.
+### RENT <type> <hours> <phone> <address> [date]
+Rent equipment.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"AVAILABLE BANGALORE","sender":"+919123456789"}}'
+  -d '{"From":"+919123456789","Body":"RENT TRACTOR 5 9123456789 Panvel 2026-02-10"}'
 ```
 
-**Expected:** List of available services with owner name, price, and phone.
-
----
-
-### MYSERVICES \<phone\>
-
-View equipment registered by an owner.
+### AVAILABLE <village>
+Check availability.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"MYSERVICES 9876543210","sender":"+919876543210"}}'
+  -d '{"From":"+919123456789","Body":"AVAILABLE BANGALORE"}'
 ```
 
-**Expected:** List of services with type, village, price, and availability status.
-
----
-
-### MYBOOKINGS \<phone\>
-
-View farmer's equipment booking history.
+### MYSERVICES <phone>
+View registered services (Owner).
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"MYBOOKINGS 9123456789","sender":"+919123456789"}}'
+  -d '{"From":"+919876543210","Body":"MYSERVICES"}'
 ```
 
-**Expected:** Last 5 bookings with type, status, price, and date.
+### MYBOOKINGS <phone>
+View bookings (Farmer).
 
----
+```bash
+curl -X POST http://localhost:3000/sms/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"From":"+919123456789","Body":"MYBOOKINGS"}'
+```
 
 ### STATS
-
-View system statistics for equipment services.
+System stats.
 
 ```bash
-curl -X POST http://localhost:3000/sms \
+curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"data":{"message":"STATS","sender":"+919999999999"}}'
+  -d '{"From":"+919999999999","Body":"STATS"}'
 ```
-
-**Expected:** Total services, available count, total bookings, active bookings.
-
----
-
-## Typical Flow
-
-### Farmer flow (Produce Logistics)
-
-1. `ADDRESS 123 Farm Road, Rampur`
-2. `LOG WHEAT 100 2023-10-25`
-3. When pool is full: receives "POOL IS FULL, WAITING ON DRIVER.."
-4. When driver accepts: receives "DRIVER ACQUIRED" with details
-
-### Driver flow
-
-1. `AVAILABLE`
-2. `ROUTES` (when notified of ready pool)
-3. `ROUTEDETAILS \<id\>` (optional)
-4. `YES \<id\>` to accept
-5. `DONE` when delivery complete (→ blockchain record)
-
-### Equipment Owner flow
-
-1. `REGISTER TRACTOR 14th Street Bangalore 600 9876543210 RAMESH`
-2. `MYSERVICES 9876543210` to view registered equipment
-3. When booked: receives Google Maps link to farmer location
-4. Equipment auto-released when booking period expires
-
-### Farmer flow (Equipment Rental)
-
-1. `AVAILABLE BANGALORE` - Check what's available
-2. `RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10`
-3. Receives booking confirmation with owner contact
-4. `MYBOOKINGS 9123456789` to view history

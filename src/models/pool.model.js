@@ -8,6 +8,7 @@ const poolSchema = new mongoose.Schema({
   crops: [String],
   total_quantity: { type: Number, default: 0 },
   threshold: Number,
+  targetVehicleType: { type: String, enum: ['REGULAR', 'LARGE'], default: 'REGULAR' },
   status: { type: String, default: 'OPEN' }, // OPEN → READY → ASSIGNED → COMPLETED
   createdAt: { type: Date, default: Date.now },
   expiresAt: Date

@@ -16,11 +16,19 @@ async function seed() {
     await Pool.deleteMany({});
     await Produce.deleteMany({});
 
-    console.log('🌱 Seeding Driver...');
+    console.log('🌱 Seeding Drivers...');
     await Driver.create({
-        name: 'Ramesh Driver',
+        name: 'Ramesh Driver (Regular)',
         phone: '+918888888888',
         village: 'RAMPUR',
+        vehicleType: 'REGULAR',
+        available: true
+    });
+    await Driver.create({
+        name: 'Suresh Driver (Large)',
+        phone: '+917777777777',
+        village: 'RAMPUR',
+        vehicleType: 'LARGE',
         available: true
     });
 

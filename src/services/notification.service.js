@@ -1,16 +1,16 @@
 import { getAvailableDrivers } from '../models/driver.model.js';
 import { sendSMS } from './sms.gateway.js';
 
-export async function notifyDrivers(crop, village, quantity) {
-  const drivers = await getAvailableDrivers(village);
+export async function notifyDrivers(crop, village, quantity, vehicleType = null) {
+  const drivers = await getAvailableDrivers(village, vehicleType);
 
   if (drivers.length === 0) {
-    console.log('❌ No drivers available');
+    console.log(`❌ No ${vehicleType || 'any'} drivers available`);
     return;
   }
-  console.log('🚛 Drivers found:', drivers.length);
+  console.log(`🚛 ${vehicleType || 'All'} Drivers found:`, drivers.length);
 
-  const message = `🚚 Pickup Ready!\nCrop: ${crop}\nQty: ${quantity}\nVillage: ${village}\nReply YES to accept`;
+  const message = `🚚 Pickup Ready!\nCrop: ${crop}\nQty: ${quantity}\nVillage: ${village}\nTruck: ${vehicleType || 'ANY'}\nReply YES to accept`;
 
   // Send SMS to all drivers
   const smsPromises = drivers.map(async (driver) => {
