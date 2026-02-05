@@ -1,4 +1,4 @@
-import { saveProduce, Produce } from '../models/produce.model.js';
+﻿import { saveProduce, Produce } from '../models/produce.model.js';
 import { processPooling } from '../services/pooling.service.js';
 import { extractVillageFromAddress } from '../services/location.service.js';
 import { generateGoogleMapsLink } from '../services/maps.service.js';
@@ -91,7 +91,7 @@ export async function handleSMS(req, res) {
     }
 
     const upperMsg = message.toUpperCase();
-    console.log(`📩 SMS from ${phone}: ${upperMsg}`);
+    console.log(`ðŸ“© SMS from ${phone}: ${upperMsg}`);
 
     // ======================
     // CHECK REGISTRATION SESSION
@@ -108,7 +108,7 @@ export async function handleSMS(req, res) {
       const driver = await getDriverByPhone(phone);
       if (driver) {
         return sendReply(phone,
-          '👨‍✈️ DRIVER MENU:\n' +
+          'ðŸ‘¨â€âœˆï¸ DRIVER MENU:\n' +
           'AVAILABLE - Mark availability\n' +
           'UNAVAILABLE - Mark unavailable\n' +
           'ROUTES - View routes\n' +
@@ -121,7 +121,7 @@ export async function handleSMS(req, res) {
       const farmer = await getFarmerByPhone(phone);
       if (farmer) {
         return sendReply(phone,
-          '👨‍🌾 FARMER MENU:\n' +
+          'ðŸ‘¨â€ðŸŒ¾ FARMER MENU:\n' +
           'ADDRESS <Addr> - Set Address\n' +
           'LOG <Crop> <Qty> <Date> - Log Produce\n' +
           'AVAILABLE <Village> - Check Equipment\n' +
@@ -135,7 +135,7 @@ export async function handleSMS(req, res) {
       // User is not registered, start registration flow
       await RegistrationSession.create({ phone, step: 'ASK_ROLE', data: {} });
       return sendReply(phone,
-        'Welcome to Logi-Pool! 🌾\n' +
+        'Welcome to Logi-Pool! ðŸŒ¾\n' +
         'It seems you are new here.\n\n' +
         'Are you a FARMER or DRIVER?\n' +
         'Reply with FARMER or DRIVER.',
@@ -152,7 +152,7 @@ export async function handleSMS(req, res) {
         return sendReply(phone, stats.message, res);
       }
       return sendReply(phone,
-        `📊 SYSTEM STATS:\n` +
+        `ðŸ“Š SYSTEM STATS:\n` +
         `Total Services: ${stats.totalServices}\n` +
         `Available: ${stats.availableServices}\n` +
         `Total Bookings: ${stats.totalBookings}\n` +
@@ -274,9 +274,9 @@ export async function handleSMS(req, res) {
         if (dispatch) {
           await markDriverAvailable(phone);
           await markPoolCompleted(dispatch.poolId);
-          try { await createJourneyForCompletedDispatch(dispatch); } catch (e) { console.error('❌ Journey creation failed:', e.message); }
+          try { await createJourneyForCompletedDispatch(dispatch); } catch (e) { console.error('âŒ Journey creation failed:', e.message); }
           // Process Farmer Rewards
-          try { await processFarmerRewardsForCompletedDispatch(dispatch.poolId); } catch (e) { console.error('❌ Reward processing failed:', e.message); }
+          try { await processFarmerRewardsForCompletedDispatch(dispatch.poolId); } catch (e) { console.error('âŒ Reward processing failed:', e.message); }
           return sendReply(phone, 'Transport job completed. You are now available.', res);
         }
         await handleEquipmentDone(phone);
@@ -295,7 +295,7 @@ export async function handleSMS(req, res) {
 
       if (parts.length < 6) {
         return sendReply(phone,
-          '❌ Format: REGISTER <type> <address> <price> <phone> <name>\n' +
+          'âŒ Format: REGISTER <type> <address> <price> <phone> <name>\n' +
           'Example: REGISTER TRACTOR 14th Street Bangalore 600 9876543210 RAMESH',
           res
         );
@@ -309,11 +309,11 @@ export async function handleSMS(req, res) {
       const ownerName = parts[parts.length - 1];
 
       if (isNaN(price) || price <= 0) {
-        return sendReply(phone, '❌ Invalid price. Example: REGISTER TRACTOR MUMBAI 600 9876543210 RAMESH', res);
+        return sendReply(phone, 'âŒ Invalid price. Example: REGISTER TRACTOR MUMBAI 600 9876543210 RAMESH', res);
       }
 
       if (!ownerPhone || ownerPhone.length < 10) {
-        return sendReply(phone, '❌ Invalid phone number. Must be at least 10 digits.', res);
+        return sendReply(phone, 'âŒ Invalid phone number. Must be at least 10 digits.', res);
       }
 
       // Everything between TYPE and PRICE is treated as address
@@ -321,7 +321,7 @@ export async function handleSMS(req, res) {
       const address = addressParts.join(' ');
 
       if (!address) {
-        return sendReply(phone, '❌ Address is required.', res);
+        return sendReply(phone, 'âŒ Address is required.', res);
       }
 
       const result = await registerEquipment(type, address, price, ownerPhone, ownerName);
@@ -331,6 +331,21 @@ export async function handleSMS(req, res) {
       }
 
       const s = result.service;
+      
+      // Different response for TRUCK vs other equipment
+      if (s.type === 'TRUCK') {
+        return sendReply(phone,
+          `${result.message}\n` +
+          `🚛 Type: ${s.type} (${s.vehicle_type})\n` +
+          `👤 Driver: ${s.owner_name}\n` +
+          `📍 Village: ${s.village}\n` +
+          `📌 Address: ${s.address}\n` +
+          `🆔 ID: ${s._id}\n` +
+          `✅ Ready for Logi-Pool routes!`,
+          res
+        );
+      }
+
       return sendReply(phone,
         `${result.message}\n` +
         `🚜 Type: ${s.type}\n` +
@@ -351,7 +366,7 @@ export async function handleSMS(req, res) {
 
       if (parts.length < 5) {
         return sendReply(phone,
-          '❌ Format: RENT <type> <hours> <phone> <address> [date]\n' +
+          'âŒ Format: RENT <type> <hours> <phone> <address> [date]\n' +
           'Example: RENT TRACTOR 5 9123456789 Near Market Panvel 2026-02-10',
           res
         );
@@ -363,11 +378,11 @@ export async function handleSMS(req, res) {
 
       hours = parseInt(hours);
       if (isNaN(hours) || hours <= 0) {
-        return sendReply(phone, '❌ Invalid hours.', res);
+        return sendReply(phone, 'âŒ Invalid hours.', res);
       }
 
       if (!farmerPhone || farmerPhone.length < 10) {
-        return sendReply(phone, '❌ Invalid phone number.', res);
+        return sendReply(phone, 'âŒ Invalid phone number.', res);
       }
 
       // Parse Address & Optional Date
@@ -389,7 +404,7 @@ export async function handleSMS(req, res) {
       const farmerAddress = addressParts.join(' ');
 
       if (!farmerAddress) {
-        return sendReply(phone, '❌ Address is required.', res);
+        return sendReply(phone, 'âŒ Address is required.', res);
       }
 
       const result = await bookEquipment(type, hours, farmerPhone, farmerAddress, startTime);
@@ -398,11 +413,11 @@ export async function handleSMS(req, res) {
         let msg = result.message;
         if (result.earliest_available_at) {
           const availableAt = new Date(result.earliest_available_at);
-          msg += `\n\n⏰ Earliest Available: ${availableAt.toLocaleString('en-IN', {
+          msg += `\n\nâ° Earliest Available: ${availableAt.toLocaleString('en-IN', {
             dateStyle: 'medium',
             timeStyle: 'short'
           })}`;
-          msg += `\n💡 Try booking after this time!`;
+          msg += `\nðŸ’¡ Try booking after this time!`;
         }
         return sendReply(phone, msg, res);
       }
@@ -412,23 +427,23 @@ export async function handleSMS(req, res) {
       const b = result.booking;
 
       let msg = `${result.message}\n`;
-      msg += `👤 Owner: ${s.owner_name}\n`;
-      msg += `📍 Village: ${s.village}\n`;
-      msg += `📞 Phone: ${s.phone}\n`;
-      msg += `💰 Original: ₹${b.original_price}\n`;
+      msg += `ðŸ‘¤ Owner: ${s.owner_name}\n`;
+      msg += `ðŸ“ Village: ${s.village}\n`;
+      msg += `ðŸ“ž Phone: ${s.phone}\n`;
+      msg += `ðŸ’° Original: â‚¹${b.original_price}\n`;
       if (b.discount_percentage > 0) {
-        msg += `🎉 Discount: ${b.discount_percentage}% (₹${b.discount_amount} off)\n`;
+        msg += `ðŸŽ‰ Discount: ${b.discount_percentage}% (â‚¹${b.discount_amount} off)\n`;
       }
-      msg += `💵 Total Pay: ₹${b.final_price}\n`;
-      msg += `🆔 Booking ID: ${b._id}\n`;
+      msg += `ðŸ’µ Total Pay: â‚¹${b.final_price}\n`;
+      msg += `ðŸ†” Booking ID: ${b._id}\n`;
 
       const start = new Date(b.start_time);
       const end = new Date(b.end_time);
-      msg += `⏰ Start: ${start.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
-      msg += `⏱️ End: ${end.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+      msg += `â° Start: ${start.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+      msg += `â±ï¸ End: ${end.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
 
       if (result.maps_link) {
-        msg += `\n🗺️ GOOGLE MAPS LINK FOR OWNER:\n${result.maps_link}`;
+        msg += `\nðŸ—ºï¸ GOOGLE MAPS LINK FOR OWNER:\n${result.maps_link}`;
       }
 
       return sendReply(phone, msg, res);
@@ -440,7 +455,7 @@ export async function handleSMS(req, res) {
       const village = parts[1];
 
       if (!village) {
-        return sendReply(phone, '❌ Format: AVAILABLE <village>\nExample: AVAILABLE BANGALORE', res);
+        return sendReply(phone, 'âŒ Format: AVAILABLE <village>\nExample: AVAILABLE BANGALORE', res);
       }
 
       const result = await getAvailableEquipment(village);
@@ -449,11 +464,11 @@ export async function handleSMS(req, res) {
         return sendReply(phone, result.message, res);
       }
 
-      let msg = `🔍 Available in ${result.village} (${result.count}):\n`;
+      let msg = `ðŸ” Available in ${result.village} (${result.count}):\n`;
       result.services.forEach((s, i) => {
         msg += `\n${i + 1}. ${s.type}`;
         msg += `\n   Owner: ${s.owner_name}`;
-        msg += `\n   ₹${s.price_per_hour}/hr`;
+        msg += `\n   â‚¹${s.price_per_hour}/hr`;
         msg += `\n   Ph: ${s.phone}`;
       });
 
@@ -466,7 +481,7 @@ export async function handleSMS(req, res) {
       const queryPhone = parts[1] ? normalizePhone(parts[1]) : phone;
 
       if (!queryPhone || queryPhone.length < 10) {
-        return sendReply(phone, '❌ Format: MYSERVICES <phone>\nExample: MYSERVICES 9876543210', res);
+        return sendReply(phone, 'âŒ Format: MYSERVICES <phone>\nExample: MYSERVICES 9876543210', res);
       }
 
       const result = await getMyServices(queryPhone);
@@ -475,11 +490,11 @@ export async function handleSMS(req, res) {
         return sendReply(phone, result.message, res);
       }
 
-      let msg = `📋 Your Services (${result.count}):\n`;
+      let msg = `ðŸ“‹ Your Services (${result.count}):\n`;
       result.services.forEach((s, i) => {
         msg += `\n${i + 1}. ${s.type} - ${s.village}`;
-        msg += `\n   ₹${s.price_per_hour}/hr`;
-        msg += `\n   ${s.available ? '✅ Available' : '🔴 Booked'}`;
+        msg += `\n   â‚¹${s.price_per_hour}/hr`;
+        msg += `\n   ${s.available ? 'âœ… Available' : 'ðŸ”´ Booked'}`;
       });
 
       return sendReply(phone, msg, res);
@@ -491,7 +506,7 @@ export async function handleSMS(req, res) {
       const queryPhone = parts[1] || phone.replace(/^\+/, '');
 
       if (!queryPhone || queryPhone.length < 10) {
-        return sendReply(phone, '❌ Format: MYBOOKINGS <phone>\nExample: MYBOOKINGS 9123456789', res);
+        return sendReply(phone, 'âŒ Format: MYBOOKINGS <phone>\nExample: MYBOOKINGS 9123456789', res);
       }
 
       const result = await getMyBookings(queryPhone);
@@ -500,10 +515,10 @@ export async function handleSMS(req, res) {
         return sendReply(phone, result.message, res);
       }
 
-      let msg = `📚 Your Bookings (Last ${result.count}):\n`;
+      let msg = `ðŸ“š Your Bookings (Last ${result.count}):\n`;
       result.bookings.forEach((b, i) => {
         msg += `\n${i + 1}. ${b.type} - ${b.status}`;
-        msg += `\n   ₹${b.final_price}`;
+        msg += `\n   â‚¹${b.final_price}`;
         msg += `\n   ${new Date(b.date).toLocaleDateString()}`;
       });
 
@@ -517,7 +532,7 @@ export async function handleSMS(req, res) {
       const farmer = await getFarmerByPhone(phone);
       if (farmer) {
         return sendReply(phone,
-          '👨‍🌾 FARMER MENU:\n' +
+          'ðŸ‘¨â€ðŸŒ¾ FARMER MENU:\n' +
           'ADDRESS <Addr> - Set Address\n' +
           'LOG <Crop> <Qty> <Date> - Log Produce\n' +
           'AVAILABLE <Village> - Check Equipment\n' +
@@ -525,7 +540,7 @@ export async function handleSMS(req, res) {
           'MYBOOKINGS <Phone> - View Bookings\n' +
           'REWARDS - Check rewards status\n' +
           'HELP - Show this menu\n\n' +
-          '🚜 EQUIPMENT OWNER:\n' +
+          'ðŸšœ EQUIPMENT OWNER:\n' +
           'REGISTER <Type> <Addr> <Price> <Phone> <Name>\n' +
           'MYSERVICES <Phone> - View Services\n' +
           'STATS - System Statistics',
@@ -535,7 +550,7 @@ export async function handleSMS(req, res) {
       return sendReply(phone,
         'Send START to begin.\n' +
         'Or ADDRESS <your address> to register.\n\n' +
-        '🚜 Equipment Owner?\n' +
+        'ðŸšœ Equipment Owner?\n' +
         'REGISTER <Type> <Addr> <Price> <Phone> <Name>',
         res
       );
@@ -547,7 +562,7 @@ export async function handleSMS(req, res) {
 
       const status = await getFarmerRewardStatus(phone);
       return sendReply(phone,
-        `🎁 REWARDS STATUS:\n` +
+        `ðŸŽ REWARDS STATUS:\n` +
         `Total Dispatched: ${status.totalDispatched} kg\n` +
         `Reward Balance: ${status.rewardBalance} kg\n` +
         `Progress to next: ${status.progressToNext}/${status.nextThreshold} kg`,
@@ -590,7 +605,7 @@ export async function handleSMS(req, res) {
       try {
         rewardUsage = await processRewardUtilization(phone, weight);
       } catch (e) {
-        console.error('❌ Reward utilization failed:', e.message);
+        console.error('âŒ Reward utilization failed:', e.message);
       }
 
       // Trigger Pooling (returns poolId and isReady)
@@ -600,7 +615,7 @@ export async function handleSMS(req, res) {
         `Expected arrival date : ${readyDate.toLocaleDateString()}`;
 
       if (rewardUsage.applied) {
-        response += `\n🎁 Discount applied: ${rewardUsage.used} kg\nRemaining balance: ${rewardUsage.remaining} kg`;
+        response += `\nðŸŽ Discount applied: ${rewardUsage.used} kg\nRemaining balance: ${rewardUsage.remaining} kg`;
       }
 
       return sendReply(phone, response, res);
@@ -634,14 +649,14 @@ async function handleRegistrationStep(session, message, phone, res) {
         await updateSession(phone, { step: 'ASK_NAME', 'data.role': 'DRIVER' });
         return sendReply(phone, 'Great! You are registering as a DRIVER.\n\nPlease enter your full Name:', res);
       }
-      return sendReply(phone, '❌ Invalid choice.\nPlease reply with FARMER or DRIVER.', res);
+      return sendReply(phone, 'âŒ Invalid choice.\nPlease reply with FARMER or DRIVER.', res);
     }
 
     // Step 2: ASK_NAME
     if (step === 'ASK_NAME') {
       const name = message.trim();
       if (!name || name.length < 2) {
-        return sendReply(phone, '❌ Name is too short.\nPlease enter your full Name:', res);
+        return sendReply(phone, 'âŒ Name is too short.\nPlease enter your full Name:', res);
       }
       await updateSession(phone, { step: 'ASK_ADDRESS', 'data.name': name });
       return sendReply(phone, `Thanks, ${name}!\n\nPlease enter your full Address:`, res);
@@ -651,7 +666,7 @@ async function handleRegistrationStep(session, message, phone, res) {
     if (step === 'ASK_ADDRESS') {
       const address = message.trim();
       if (!address || address.length < 5) {
-        return sendReply(phone, '❌ Address is too short.\nPlease enter your full Address:', res);
+        return sendReply(phone, 'âŒ Address is too short.\nPlease enter your full Address:', res);
       }
       await updateSession(phone, { step: 'ASK_AADHAR', 'data.address': address });
       return sendReply(phone, 'Got it!\n\nPlease enter your 12-digit Aadhar Number:', res);
@@ -662,7 +677,7 @@ async function handleRegistrationStep(session, message, phone, res) {
       const aadhar = message.replace(/\s/g, ''); // Remove spaces
       const aadharRegex = /^\d{12}$/;
       if (!aadharRegex.test(aadhar)) {
-        return sendReply(phone, '❌ Invalid Aadhar format.\nPlease enter a valid 12-digit Aadhar Number:', res);
+        return sendReply(phone, 'âŒ Invalid Aadhar format.\nPlease enter a valid 12-digit Aadhar Number:', res);
       }
 
       // Fetch updated session data
@@ -681,7 +696,7 @@ async function handleRegistrationStep(session, message, phone, res) {
         });
         await deleteSession(phone);
         return sendReply(phone,
-          '✅ Registration Complete!\n\n' +
+          'âœ… Registration Complete!\n\n' +
           `Name: ${updatedSession.data.name}\n` +
           `Role: FARMER\n` +
           `Village: ${village}\n\n` +
@@ -699,7 +714,7 @@ async function handleRegistrationStep(session, message, phone, res) {
     if (step === 'ASK_PAYLOAD') {
       const payload = parseInt(message.replace(/[^\d]/g, ''));
       if (isNaN(payload) || payload <= 0) {
-        return sendReply(phone, '❌ Invalid payload.\nPlease enter a number (in kg):', res);
+        return sendReply(phone, 'âŒ Invalid payload.\nPlease enter a number (in kg):', res);
       }
 
       const vehicleType = payload <= 500 ? 'REGULAR' : 'LARGE';
@@ -719,7 +734,7 @@ async function handleRegistrationStep(session, message, phone, res) {
       await deleteSession(phone);
 
       return sendReply(phone,
-        '✅ Registration Complete!\n\n' +
+        'âœ… Registration Complete!\n\n' +
         `Name: ${updatedSession.data.name}\n` +
         `Role: DRIVER\n` +
         `Vehicle Type: ${vehicleType}\n` +
@@ -734,10 +749,10 @@ async function handleRegistrationStep(session, message, phone, res) {
     return sendReply(phone, 'Session expired. Send START to begin again.', res);
 
   } catch (err) {
-    console.error('❌ Registration error:', err);
+    console.error('âŒ Registration error:', err);
     if (err.code === 11000) {
       // Duplicate key error (likely Aadhar)
-      return sendReply(phone, '❌ Registration Failed: This Aadhar number is already registered with another account.', res);
+      return sendReply(phone, 'âŒ Registration Failed: This Aadhar number is already registered with another account.', res);
     }
     await deleteSession(phone);
     return sendReply(phone, 'An error occurred. Send START to try again.', res);

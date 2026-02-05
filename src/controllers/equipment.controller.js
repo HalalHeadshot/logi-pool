@@ -19,6 +19,7 @@ import {
 
 import { extractVillageFromAddress } from '../services/location.service.js';
 import { generateGoogleMapsLink } from '../services/maps.service.js';
+import { getDriverByPhone, Driver, createOrUpdateDriver } from '../models/driver.model.js';
 
 /**
  * Book a service (RENT command)
@@ -53,7 +54,7 @@ export async function bookEquipment(type, hours, farmerPhone, farmerAddress, sta
         // Find busy services (with active bookings)
         const busyServiceIds = await getBusyServiceIds(start);
 
-        // Find available service
+        // Find available service (exclude for_pooling_only trucks)
         const service = await Service.findOne({
             type: typeUpper,
             $or: [
@@ -61,7 +62,8 @@ export async function bookEquipment(type, hours, farmerPhone, farmerAddress, sta
                 { 'location.village': new RegExp(`^${farmerVillage}$`, 'i') }
             ],
             _id: { $nin: busyServiceIds },
-            available: true
+            available: true,
+            for_pooling_only: { $ne: true }  // Exclude driver trucks
         });
 
         // No available service - find earliest availability
@@ -162,8 +164,8 @@ export async function registerEquipment(type, address, pricePerHour, phone, owne
     try {
         const typeUpper = type.toUpperCase();
 
-        // Validate type
-        const validTypes = ['TRACTOR', 'PLOUGH', 'LABOUR', 'WAREHOUSE'];
+        // Validate type (TRUCK is also valid but handled specially)
+        const validTypes = ['TRACTOR', 'PLOUGH', 'LABOUR', 'WAREHOUSE', 'TRUCK'];
         if (!validTypes.includes(typeUpper)) {
             return {
                 success: false,
@@ -180,6 +182,33 @@ export async function registerEquipment(type, address, pricePerHour, phone, owne
         }
         village = village.toUpperCase();
 
+        // Handle TRUCK type specially - auto-creates driver for Logi-Pool
+        let truckOptions = {};
+        if (typeUpper === 'TRUCK') {
+            // Check if driver already has a truck registered
+            const existingDriver = await getDriverByPhone(phone);
+            if (existingDriver && existingDriver.truckId) {
+                return {
+                    success: false,
+                    message: '❌ You already have a truck registered. Use MYSERVICES to view it.'
+                };
+            }
+
+            // Determine vehicle type - use passed value or default to REGULAR
+            // vehicleType can be passed via truckOptions.vehicle_type from SMS controller
+            const vehicleType = truckOptions.vehicle_type || 'REGULAR';
+
+            // Create or update driver record automatically
+            const driver = await createOrUpdateDriver(phone, ownerName, village, vehicleType);
+
+            // Set truck-specific options
+            truckOptions = {
+                for_pooling_only: true,
+                driver_phone: phone,
+                vehicle_type: driver.vehicleType
+            };
+        }
+
         // Register the service
         const service = await registerService(
             typeUpper,
@@ -187,12 +216,22 @@ export async function registerEquipment(type, address, pricePerHour, phone, owne
             village,
             ownerName,
             address,
-            pricePerHour
+            pricePerHour,
+            truckOptions
         );
+
+        // If TRUCK, link truck to driver profile
+        if (typeUpper === 'TRUCK') {
+            const normalizedPhone = '+' + phone.replace(/[\s+]/g, '');
+            await Driver.findOneAndUpdate(
+                { phone: normalizedPhone },
+                { truckId: service._id }
+            );
+        }
 
         return {
             success: true,
-            message: '🚜 Service registered successfully',
+            message: typeUpper === 'TRUCK' ? '🚛 Truck registered for Logi-Pool!' : '🚜 Service registered successfully',
             service: {
                 _id: service._id,
                 type: service.type,
@@ -200,7 +239,9 @@ export async function registerEquipment(type, address, pricePerHour, phone, owne
                 phone: service.phone,
                 village: service.location?.village || service.village,
                 address: service.location?.address,
-                price_per_hour: service.price_per_hour
+                price_per_hour: service.price_per_hour,
+                vehicle_type: service.vehicle_type,
+                for_pooling_only: service.for_pooling_only
             }
         };
 

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const serviceSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['TRACTOR', 'PLOUGH', 'LABOUR', 'WAREHOUSE'],
+    enum: ['TRACTOR', 'PLOUGH', 'LABOUR', 'WAREHOUSE', 'TRUCK'],
     required: true
   },
   owner_name: String,
@@ -21,13 +21,25 @@ const serviceSchema = new mongoose.Schema({
   available: {
     type: Boolean,
     default: true
+  },
+  // Logi-Pool truck fields
+  for_pooling_only: {
+    type: Boolean,
+    default: false       // If true, cannot be rented via RENT command
+  },
+  driver_phone: String,  // Links truck to driver (for TRUCK type)
+  vehicle_type: {
+    type: String,
+    enum: ['REGULAR', 'LARGE', null],
+    default: null        // REGULAR=1000kg, LARGE=2500kg capacity
   }
 }, { timestamps: true });
 
 export const Service = mongoose.model('Service', serviceSchema);
 
 // Register a new service (equipment)
-export async function registerService(type, phone, village, ownerName = 'Owner', address = '', pricePerHour = 0) {
+// For TRUCK type: pass truckOptions = { for_pooling_only, driver_phone, vehicle_type }
+export async function registerService(type, phone, village, ownerName = 'Owner', address = '', pricePerHour = 0, truckOptions = {}) {
   const service = await Service.create({
     type: type.toUpperCase(),
     owner_name: ownerName,
@@ -38,7 +50,11 @@ export async function registerService(type, phone, village, ownerName = 'Owner',
       village: village.toUpperCase()
     },
     village: village.toUpperCase(),
-    price_per_hour: pricePerHour
+    price_per_hour: pricePerHour,
+    // Truck-specific fields
+    for_pooling_only: truckOptions.for_pooling_only || false,
+    driver_phone: truckOptions.driver_phone || null,
+    vehicle_type: truckOptions.vehicle_type || null
   });
   return service;
 }
