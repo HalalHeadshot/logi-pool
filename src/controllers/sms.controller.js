@@ -13,6 +13,7 @@ import {
   markDriverUnavailable,
   markDriverAvailable,
   getDriverByPhone,
+  createDriver,
   Driver
 } from '../models/driver.model.js';
 
@@ -28,6 +29,13 @@ import {
   createOrUpdateFarmer,
   Farmer
 } from '../models/farmer.model.js';
+
+import {
+  getSession,
+  updateSession,
+  deleteSession,
+  RegistrationSession
+} from '../models/registration.model.js';
 
 import { notifyFarmers } from '../services/notification.service.js';
 
@@ -86,6 +94,14 @@ export async function handleSMS(req, res) {
     console.log(`📩 SMS from ${phone}: ${upperMsg}`);
 
     // ======================
+    // CHECK REGISTRATION SESSION
+    // ======================
+    const session = await getSession(phone);
+    if (session) {
+      return handleRegistrationStep(session, message, phone, res);
+    }
+
+    // ======================
     // START COMMAND
     // ======================
     if (upperMsg === 'START') {
@@ -116,8 +132,13 @@ export async function handleSMS(req, res) {
           res
         );
       }
+      // User is not registered, start registration flow
+      await RegistrationSession.create({ phone, step: 'ASK_ROLE', data: {} });
       return sendReply(phone,
-        'Welcome to Logi-Pool!\nAre you a Driver or Farmer?\n(Contact Admin to register)\n\n🚜 Equipment Owner?\nREGISTER <Type> <Addr> <Price> <Phone> <Name>',
+        'Welcome to Logi-Pool! 🌾\n' +
+        'It seems you are new here.\n\n' +
+        'Are you a FARMER or DRIVER?\n' +
+        'Reply with FARMER or DRIVER.',
         res
       );
     }
@@ -591,5 +612,134 @@ export async function handleSMS(req, res) {
     console.error(err);
     if (phone) await sendSMS(phone, 'Server error');
     res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// ======================
+// REGISTRATION FLOW HANDLER
+// ======================
+async function handleRegistrationStep(session, message, phone, res) {
+  const upperMsg = message.toUpperCase().trim();
+  const step = session.step;
+  const data = session.data || {};
+
+  try {
+    // Step 1: ASK_ROLE
+    if (step === 'ASK_ROLE') {
+      if (upperMsg === 'FARMER') {
+        await updateSession(phone, { step: 'ASK_NAME', 'data.role': 'FARMER' });
+        return sendReply(phone, 'Great! You are registering as a FARMER.\n\nPlease enter your full Name:', res);
+      }
+      if (upperMsg === 'DRIVER') {
+        await updateSession(phone, { step: 'ASK_NAME', 'data.role': 'DRIVER' });
+        return sendReply(phone, 'Great! You are registering as a DRIVER.\n\nPlease enter your full Name:', res);
+      }
+      return sendReply(phone, '❌ Invalid choice.\nPlease reply with FARMER or DRIVER.', res);
+    }
+
+    // Step 2: ASK_NAME
+    if (step === 'ASK_NAME') {
+      const name = message.trim();
+      if (!name || name.length < 2) {
+        return sendReply(phone, '❌ Name is too short.\nPlease enter your full Name:', res);
+      }
+      await updateSession(phone, { step: 'ASK_ADDRESS', 'data.name': name });
+      return sendReply(phone, `Thanks, ${name}!\n\nPlease enter your full Address:`, res);
+    }
+
+    // Step 3: ASK_ADDRESS
+    if (step === 'ASK_ADDRESS') {
+      const address = message.trim();
+      if (!address || address.length < 5) {
+        return sendReply(phone, '❌ Address is too short.\nPlease enter your full Address:', res);
+      }
+      await updateSession(phone, { step: 'ASK_AADHAR', 'data.address': address });
+      return sendReply(phone, 'Got it!\n\nPlease enter your 12-digit Aadhar Number:', res);
+    }
+
+    // Step 4: ASK_AADHAR
+    if (step === 'ASK_AADHAR') {
+      const aadhar = message.replace(/\s/g, ''); // Remove spaces
+      const aadharRegex = /^\d{12}$/;
+      if (!aadharRegex.test(aadhar)) {
+        return sendReply(phone, '❌ Invalid Aadhar format.\nPlease enter a valid 12-digit Aadhar Number:', res);
+      }
+
+      // Fetch updated session data
+      const updatedSession = await getSession(phone);
+      const role = updatedSession.data.role;
+
+      if (role === 'FARMER') {
+        // Create Farmer and finish
+        const village = await extractVillageFromAddress(updatedSession.data.address);
+        await Farmer.create({
+          phone,
+          name: updatedSession.data.name,
+          address: updatedSession.data.address,
+          village,
+          aadhar
+        });
+        await deleteSession(phone);
+        return sendReply(phone,
+          '✅ Registration Complete!\n\n' +
+          `Name: ${updatedSession.data.name}\n` +
+          `Role: FARMER\n` +
+          `Village: ${village}\n\n` +
+          'Send START to view your menu.',
+          res
+        );
+      }
+
+      // Driver - ask for payload
+      await updateSession(phone, { step: 'ASK_PAYLOAD', 'data.aadhar': aadhar });
+      return sendReply(phone, 'Almost done!\n\nPlease enter your vehicle payload capacity (in kg):', res);
+    }
+
+    // Step 5: ASK_PAYLOAD (Driver only)
+    if (step === 'ASK_PAYLOAD') {
+      const payload = parseInt(message.replace(/[^\d]/g, ''));
+      if (isNaN(payload) || payload <= 0) {
+        return sendReply(phone, '❌ Invalid payload.\nPlease enter a number (in kg):', res);
+      }
+
+      const vehicleType = payload <= 500 ? 'REGULAR' : 'LARGE';
+
+      // Fetch updated session data
+      const updatedSession = await getSession(phone);
+      const village = await extractVillageFromAddress(updatedSession.data.address);
+
+      await createDriver(
+        phone,
+        updatedSession.data.name,
+        updatedSession.data.address,
+        village,
+        updatedSession.data.aadhar,
+        vehicleType
+      );
+      await deleteSession(phone);
+
+      return sendReply(phone,
+        '✅ Registration Complete!\n\n' +
+        `Name: ${updatedSession.data.name}\n` +
+        `Role: DRIVER\n` +
+        `Vehicle Type: ${vehicleType}\n` +
+        `Village: ${village}\n\n` +
+        'Send START to view your menu.',
+        res
+      );
+    }
+
+    // Fallback - delete stale session
+    await deleteSession(phone);
+    return sendReply(phone, 'Session expired. Send START to begin again.', res);
+
+  } catch (err) {
+    console.error('❌ Registration error:', err);
+    if (err.code === 11000) {
+      // Duplicate key error (likely Aadhar)
+      return sendReply(phone, '❌ Registration Failed: This Aadhar number is already registered with another account.', res);
+    }
+    await deleteSession(phone);
+    return sendReply(phone, 'An error occurred. Send START to try again.', res);
   }
 }

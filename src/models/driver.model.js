@@ -4,6 +4,8 @@ const driverSchema = new mongoose.Schema({
   name: String,
   phone: String,
   village: String,
+  address: String,
+  aadhar: { type: String, unique: true, sparse: true },
   vehicleType: {
     type: String,
     enum: ['REGULAR', 'LARGE'],
@@ -53,4 +55,18 @@ export async function markDriverUnavailable(phone) {
   );
 
   return result;
+}
+
+// Create a new driver
+export async function createDriver(phone, name, address, village, aadhar, vehicleType) {
+  const normalizedPhone = '+' + phone.replace(/[\s+]/g, '');
+  return await Driver.create({
+    phone: normalizedPhone,
+    name,
+    address,
+    village,
+    aadhar,
+    vehicleType,
+    available: true
+  });
 }
