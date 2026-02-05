@@ -594,7 +594,7 @@ export async function handleSMS(req, res) {
       }
 
       // Trigger Pooling (returns poolId and isReady)
-      const { poolId } = await processPooling(crop.toUpperCase(), farmer.village, weight);
+      const { poolId } = await processPooling(crop.toUpperCase(), farmer.village, weight, phone);
 
       let response = `ADDED TO POOL : #${poolId}\n` +
         `Expected arrival date : ${readyDate.toLocaleDateString()}`;

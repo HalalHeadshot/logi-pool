@@ -11,6 +11,12 @@ const poolSchema = new mongoose.Schema({
   threshold: Number,
   targetVehicleType: { type: String, enum: ['REGULAR', 'LARGE'], default: 'REGULAR' },
   status: { type: String, default: 'OPEN' }, // OPEN → READY → ASSIGNED → COMPLETED
+  contributions: [{
+    farmerPhone: String,
+    produceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Produce' },
+    quantity: Number,
+    addedAt: { type: Date, default: Date.now }
+  }],
   createdAt: { type: Date, default: Date.now },
   expiresAt: Date
 });
@@ -21,6 +27,12 @@ export const Pool = mongoose.model('Pool', poolSchema);
 // Get or create an OPEN pool
 export async function getOrCreatePool(crop, village, forceNew = false) {
   const category = CROP_CATEGORIES[crop.toUpperCase()];
+
+  // Validate crop category exists
+  if (!category) {
+    throw new Error(`Unknown crop type: "${crop}". Crop must be defined in cropCategories.js`);
+  }
+
   const threshold = TRUCK_CAPACITIES.LARGE;
   const maxWaitHours = CATEGORY_RULES[category].maxWaitHours;
 
@@ -55,6 +67,23 @@ export async function addCropToPool(poolId, crop) {
   );
 }
 
+
+// Add contribution tracking
+export async function addContributionToPool(poolId, farmerPhone, produceId, quantity) {
+  await Pool.updateOne(
+    { _id: poolId },
+    {
+      $push: {
+        contributions: {
+          farmerPhone,
+          produceId,
+          quantity,
+          addedAt: new Date()
+        }
+      }
+    }
+  );
+}
 
 // Mark pool states
 export async function markPoolReady(poolId) {
