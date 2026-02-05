@@ -2,6 +2,7 @@ import {
   getOrCreatePool,
   updatePoolQuantity,
   markPoolReady,
+  addCropToPool,
   Pool
 } from '../models/pool.model.js';
 
@@ -9,40 +10,58 @@ import { assignProduceToPool } from '../models/produce.model.js';
 import { notifyDrivers, notifyFarmers } from './notification.service.js';
 
 /**
- * Process produce into pool. Returns { poolId, isReady }.
- * @returns {{ poolId: ObjectId, isReady: boolean }}
+ * Dynamic multi-pool allocation
  */
 export async function processPooling(crop, village, quantity) {
-  const pool = await getOrCreatePool(crop, village);
+  let remainingQty = quantity;
+  let lastPoolId = null;
+  let anyPoolReady = false;
 
-  // Do not modify pools that are already ready/assigned
-  if (pool.status !== 'OPEN') {
-    return { poolId: pool._id, isReady: false };
+  while (remainingQty > 0) {
+    // Step 1: Get or create an OPEN pool
+    let pool = await getOrCreatePool(crop, village);
+
+    // Step 2: If pool is not OPEN, force create new one
+    if (pool.status !== 'OPEN') {
+      pool = await getOrCreatePool(crop, village, true);
+    }
+
+    const spaceLeft = pool.threshold - pool.total_quantity;
+    const qtyToAdd = Math.min(spaceLeft, remainingQty);
+
+    // Step 3: Add quantity
+    await updatePoolQuantity(pool._id, qtyToAdd);
+
+    // Step 4: Track crop in pool
+    await addCropToPool(pool._id, crop);
+
+    // Step 5: Assign produce records
+    await assignProduceToPool(pool._id, village, crop);
+
+    const updatedPool = await Pool.findById(pool._id);
+    lastPoolId = pool._id;
+
+    // Step 6: If pool filled → mark READY
+    if (updatedPool.total_quantity >= updatedPool.threshold) {
+      await markPoolReady(pool._id);
+
+      await notifyDrivers(
+        updatedPool.category,
+        village,
+        updatedPool.total_quantity
+      );
+
+      await notifyFarmers(pool._id, 'POOL IS FULL, WAITING ON DRIVER..');
+
+      console.log(
+        `🚚 Pool ${pool._id} READY (${updatedPool.total_quantity}) crops: ${updatedPool.crops.join(', ')}`
+      );
+
+      anyPoolReady = true;
+    }
+
+    remainingQty -= qtyToAdd;
   }
 
-  // Add quantity to pool
-  await updatePoolQuantity(pool._id, quantity);
-
-  // Link produce entries to this pool
-  await assignProduceToPool(pool._id, village, crop);
-
-  const updatedPool = await Pool.findById(pool._id);
-  const now = new Date();
-
-  const isThresholdMet = updatedPool.total_quantity >= updatedPool.threshold;
-  const isExpired = now >= updatedPool.expiresAt;
-
-  if (isThresholdMet || isExpired) {
-    await markPoolReady(pool._id);
-    await notifyDrivers(updatedPool.category, village, updatedPool.total_quantity);
-    await notifyFarmers(pool._id, 'POOL IS FULL, WAITING ON DRIVER..');
-
-    console.log(
-      `🚚 Dispatching ${updatedPool.category} pool with crops: ${updatedPool.crops.join(', ')}`
-    );
-
-    return { poolId: pool._id, isReady: true };
-  }
-
-  return { poolId: pool._id, isReady: false };
+  return { poolId: lastPoolId, isReady: anyPoolReady };
 }
