@@ -1,15 +1,20 @@
 # SMS Commands Reference
 
-This document lists all SMS commands for the Logi-Pool system, including the new **Payload Size & Priority Pooling** workflow.
+This document lists all SMS commands for the Logi-Pool system, including the **merged Payload Size, Priority Pooling, and Dynamic Splitting** workflow.
 
 **Base URL:** `http://localhost:3000/sms/webhook`
 **Request format:** POST with JSON body.
 
 ---
 
-## 🚚 Truck & Priority Logic (New)
+## 🚚 Truck & Priority Logic
 
-The system now supports **Intelligent Dispatch** based on produce degradation (freshness) and quantity:
+The system now supports **Intelligent Dispatch** with two key features:
+
+1.  **Multi-Pool Splitting**: Large bulk orders are automatically split into multiple truckloads.
+    *   *Example:* 6000kg WHEAT → Two **LARGE** trucks (2500kg each) + One remaining pool (1000kg).
+2.  **Dynamic Priority Upgrading**: If a high-priority item is added to an open pool, the *entire pool* can upgrade to a faster truck.
+    *   *Example:* An open bulk pool (assigned to LARGE) upgrades to **REGULAR** (Force Dispatch) if a Critical item is added.
 
 | Scenario | Degradation | Capacity Needed | Truck Type | Priority |
 |---|---|---|---|---|
@@ -48,29 +53,29 @@ curl -X POST http://localhost:3000/sms/webhook \
 ### LOG <crop> <quantity> <date>
 Log produce with a "ready by" date. **The date determines priority.**
 
-**Scenario 1: Bulk Fresh Produce (triggers LARGE truck)**
+**Scenario 1: Bulk Fresh Produce (Splitting Logic)**
 ```bash
 curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"From":"+919999999999","Body":"LOG WHEAT 1500 2026-02-10"}'
+  -d '{"From":"+919999999999","Body":"LOG WHEAT 6000 2026-02-10"}'
 ```
-*(Log twice to reach 2500kg threshold)*
+*Result:* Automatically creates 2 Full Pools (READY for LARGE trucks) and 1 Open Pool (waiting).
 
-**Scenario 2: High Priority / Degrading (triggers REGULAR truck)**
+**Scenario 2: High Priority / Degrading (Triggering REGULAR truck)**
 ```bash
 curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
   -d '{"From":"+919999999999","Body":"LOG TOMATO 600 2026-02-05"}'
 ```
-*(If date is today/tomorrow, priority increases)*
+*(If degradation > 50%, assigns REGULAR truck with lower threshold)*
 
 **Scenario 3: Critical / Expired (Force Dispatch)**
 ```bash
 curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"From":"+919999999999","Body":"LOG SPINACH 100 2026-02-03"}'
+  -d '{"From":"+919999999999","Body":"LOG SPINACH 100 2020-01-01"}'
 ```
-*(Past date = 100% degradation = Immediate Dispatch)*
+*Result:* Immediately marks the pool as READY and notifies drivers, even if not full.
 
 ### HELP
 Shows the Farmer menu.
