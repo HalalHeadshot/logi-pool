@@ -62,6 +62,7 @@ async function sendReply(phone, message, res) {
 }
 
 export async function handleSMS(req, res) {
+  let phone = null;
   try {
     const data = req.body?.data || req.body;
     const rawMessage =
@@ -70,7 +71,7 @@ export async function handleSMS(req, res) {
       data?.sender || data?.from || data?.contact || data?.From || req.body?.From;
 
     const message = rawMessage?.trim();
-    const phone = normalizePhone(rawPhone);
+    phone = normalizePhone(rawPhone);
 
     if (!message || !phone) {
       return res.status(200).json({ status: 'received', error: 'Invalid SMS' });
@@ -148,7 +149,11 @@ export async function handleSMS(req, res) {
       }
       if (upperMsg === 'ROUTES') {
         const villageUpper = (driver.village || '').toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pools = await Pool.find({ village: new RegExp(`^${villageUpper}$`, 'i'), status: 'READY' });
+        const pools = await Pool.find({
+          village: new RegExp(`^${villageUpper}$`, 'i'),
+          status: 'READY',
+          targetVehicleType: driver.vehicleType || 'REGULAR'
+        });
         if (pools.length === 0) return sendReply(phone, 'No routes available in your area.', res);
 
         let response = '-------------------------------------------------\n';
@@ -550,7 +555,7 @@ export async function handleSMS(req, res) {
 
   } catch (err) {
     console.error(err);
-    await sendSMS(phone, 'Server error');
+    if (phone) await sendSMS(phone, 'Server error');
     res.status(500).json({ error: 'Server error' });
   }
 }

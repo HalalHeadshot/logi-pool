@@ -57,7 +57,7 @@ Log produce with a "ready by" date. **The date determines priority.**
 ```bash
 curl -X POST http://localhost:3000/sms/webhook \
   -H "Content-Type: application/json" \
-  -d '{"From":"+919999999999","Body":"LOG WHEAT 6000 2026-02-10"}'
+  -d '{"From":"+919619901805","Body":"LOG SPINACH 6000 2026-02-05"}'
 ```
 *Result:* Automatically creates 2 Full Pools (READY for LARGE trucks) and 1 Open Pool (waiting).
 

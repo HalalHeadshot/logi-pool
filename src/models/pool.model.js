@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { CROP_CATEGORIES } from '../config/cropCategories.js';
 import { CATEGORY_RULES } from '../config/categoryRules.js';
+import { TRUCK_CAPACITIES } from '../config/truckConfig.js';
 
 const poolSchema = new mongoose.Schema({
   category: String,
@@ -20,7 +21,7 @@ export const Pool = mongoose.model('Pool', poolSchema);
 // Get or create an OPEN pool
 export async function getOrCreatePool(crop, village, forceNew = false) {
   const category = CROP_CATEGORIES[crop.toUpperCase()];
-  const threshold = CATEGORY_RULES[category].threshold;
+  const threshold = TRUCK_CAPACITIES.LARGE;
   const maxWaitHours = CATEGORY_RULES[category].maxWaitHours;
 
   if (!forceNew) {
