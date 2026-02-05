@@ -5,6 +5,9 @@ const farmerSchema = new mongoose.Schema({
     phone: String,
     village: String,
     address: String,
+    total_dispatched_kg: { type: Number, default: 0 },
+    reward_kg_balance: { type: Number, default: 0 },
+    last_reward_checkpoint_kg: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }
 });
 

@@ -32,6 +32,11 @@ import {
 import { notifyFarmers } from '../services/notification.service.js';
 
 import { createJourneyForCompletedDispatch } from '../services/journey.service.js';
+import {
+  processFarmerRewardsForCompletedDispatch,
+  getFarmerRewardStatus,
+  processRewardUtilization
+} from '../models/reward.js';
 
 // Import new equipment controller functions
 import {
@@ -106,6 +111,7 @@ export async function handleSMS(req, res) {
           'AVAILABLE <Village> - Check Equipment\n' +
           'RENT <Type> <Hrs> <Phone> <Addr> [Date]\n' +
           'MYBOOKINGS <Phone> - View Bookings\n' +
+          'REWARDS - Check rewards status\n' +
           'HELP - Show this menu',
           res
         );
@@ -248,6 +254,8 @@ export async function handleSMS(req, res) {
           await markDriverAvailable(phone);
           await markPoolCompleted(dispatch.poolId);
           try { await createJourneyForCompletedDispatch(dispatch); } catch (e) { console.error('❌ Journey creation failed:', e.message); }
+          // Process Farmer Rewards
+          try { await processFarmerRewardsForCompletedDispatch(dispatch.poolId); } catch (e) { console.error('❌ Reward processing failed:', e.message); }
           return sendReply(phone, 'Transport job completed. You are now available.', res);
         }
         await handleEquipmentDone(phone);
@@ -494,6 +502,7 @@ export async function handleSMS(req, res) {
           'AVAILABLE <Village> - Check Equipment\n' +
           'RENT <Type> <Hrs> <Phone> <Addr> [Date]\n' +
           'MYBOOKINGS <Phone> - View Bookings\n' +
+          'REWARDS - Check rewards status\n' +
           'HELP - Show this menu\n\n' +
           '🚜 EQUIPMENT OWNER:\n' +
           'REGISTER <Type> <Addr> <Price> <Phone> <Name>\n' +
@@ -507,6 +516,20 @@ export async function handleSMS(req, res) {
         'Or ADDRESS <your address> to register.\n\n' +
         '🚜 Equipment Owner?\n' +
         'REGISTER <Type> <Addr> <Price> <Phone> <Name>',
+        res
+      );
+    }
+
+    if (upperMsg === 'REWARDS') {
+      const farmer = await getFarmerByPhone(phone);
+      if (!farmer) return sendReply(phone, 'Farmer not found.', res);
+
+      const status = await getFarmerRewardStatus(phone);
+      return sendReply(phone,
+        `🎁 REWARDS STATUS:\n` +
+        `Total Dispatched: ${status.totalDispatched} kg\n` +
+        `Reward Balance: ${status.rewardBalance} kg\n` +
+        `Progress to next: ${status.progressToNext}/${status.nextThreshold} kg`,
         res
       );
     }
@@ -541,14 +564,25 @@ export async function handleSMS(req, res) {
 
       await saveProduce(phone, crop.toUpperCase(), weight, farmer.address, farmer.village, readyDate);
 
+      // Check for rewards utilization
+      let rewardUsage = { applied: false };
+      try {
+        rewardUsage = await processRewardUtilization(phone, weight);
+      } catch (e) {
+        console.error('❌ Reward utilization failed:', e.message);
+      }
+
       // Trigger Pooling (returns poolId and isReady)
       const { poolId } = await processPooling(crop.toUpperCase(), farmer.village, weight);
 
-      return sendReply(phone,
-        `ADDED TO POOL : #${poolId}\n` +
-        `Expected arrival date : ${readyDate.toLocaleDateString()}`,
-        res
-      );
+      let response = `ADDED TO POOL : #${poolId}\n` +
+        `Expected arrival date : ${readyDate.toLocaleDateString()}`;
+
+      if (rewardUsage.applied) {
+        response += `\n🎁 Discount applied: ${rewardUsage.used} kg\nRemaining balance: ${rewardUsage.remaining} kg`;
+      }
+
+      return sendReply(phone, response, res);
     }
 
     return sendReply(phone, 'Invalid command or not registered.', res);
