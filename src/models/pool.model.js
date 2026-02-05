@@ -10,13 +10,18 @@ const poolSchema = new mongoose.Schema({
   total_quantity: { type: Number, default: 0 },
   threshold: Number,
   targetVehicleType: { type: String, enum: ['REGULAR', 'LARGE'], default: 'REGULAR' },
-  status: { type: String, default: 'OPEN' }, // OPEN → READY → ASSIGNED → COMPLETED
+  status: { type: String, default: 'OPEN' }, // OPEN → READY → ASSIGNED → COMPLETED → SOLD
   contributions: [{
     farmerPhone: String,
     produceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Produce' },
     quantity: Number,
     addedAt: { type: Date, default: Date.now }
   }],
+  saleInfo: {
+    pricePerQuintal: Number,
+    totalValue: Number,
+    soldAt: Date
+  },
   createdAt: { type: Date, default: Date.now },
   expiresAt: Date
 });

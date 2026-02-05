@@ -2,11 +2,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import smsRoutes from './routes/sms.routes.js';
 import journeyRoutes from './routes/journey.routes.js';
+import warehouseRoutes from './routes/warehouse.routes.js';
 import { connectMongo } from './config/mongo.js';
 import { checkExpiredPools } from './jobs/poolExpiry.job.js';
 import { checkExpiredBookings } from './jobs/equipmentExpiry.job.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -14,10 +20,15 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.text({ type: 'application/cloudevents+json' }));
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 // DEBUG LOGGING
 app.use((req, res, next) => {
   console.log(`🔌 INCOMING: ${req.method} ${req.url}`);
-  console.log('Body:', JSON.stringify(req.body).substring(0, 200));
+  if (req.body) {
+    console.log('Body:', JSON.stringify(req.body).substring(0, 200));
+  }
   next();
 });
 
@@ -32,6 +43,9 @@ app.use('/sms/webhook', (req, res, next) => {
 
 app.use('/sms/webhook', smsRoutes);
 app.use('/journey', journeyRoutes);
+app.use('/api/warehouse', warehouseRoutes);
+app.use('/api/market', warehouseRoutes);
+
 
 const startServer = async () => {
   try {

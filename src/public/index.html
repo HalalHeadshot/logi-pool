@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warehouse Dashboard - Logi-Pool</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <h1 class="logo">🏭 Warehouse Dashboard</h1>
+        <div class="header-actions">
+          <button class="btn btn-primary" id="marketBtn">
+            <span class="btn-icon">💰</span>
+            Market Prices
+          </button>
+          <button class="btn btn-secondary" id="refreshBtn">
+            <span class="btn-icon">🔄</span>
+            Refresh
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="inventory">
+          <span class="tab-icon">📦</span>
+          Inventory
+          <span class="badge" id="inventoryCount">0</span>
+        </button>
+        <button class="tab" data-tab="en-route">
+          <span class="tab-icon">🚚</span>
+          En-route
+          <span class="badge" id="enRouteCount">0</span>
+        </button>
+        <button class="tab" data-tab="sold">
+          <span class="tab-icon">💰</span>
+          Sold
+          <span class="badge" id="soldCount">0</span>
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Inventory Tab -->
+        <div class="tab-pane active" id="inventory-pane">
+          <div class="section-header">
+            <h2>Completed Deliveries</h2>
+            <p class="section-subtitle">Produce that has arrived at the warehouse</p>
+          </div>
+          <div id="inventoryGrid" class="pool-grid">
+            <div class="loading">Loading inventory...</div>
+          </div>
+        </div>
+
+        <!-- En-route Tab -->
+        <div class="tab-pane" id="en-route-pane">
+          <div class="section-header">
+            <h2>In Transit</h2>
+            <p class="section-subtitle">Pools currently being delivered</p>
+          </div>
+          <div id="enRouteGrid" class="pool-grid">
+            <div class="loading">Loading en-route pools...</div>
+          </div>
+        </div>
+
+        <!-- Sold Tab -->
+        <div class="tab-pane" id="sold-pane">
+          <div class="section-header">
+            <h2>Sold Pools</h2>
+            <p class="section-subtitle">Pools that have been sold</p>
+          </div>
+          <div id="soldGrid" class="pool-grid">
+            <div class="loading">Loading sold pools...</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Market Modal -->
+  <div class="modal" id="marketModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Market Prices</h2>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="market-categories" id="marketCategories">
+          <div class="loading">Loading market prices...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sell Confirmation Modal -->
+  <div class="modal" id="sellModal">
+    <div class="modal-overlay" id="sellModalOverlay"></div>
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2>Confirm Sale</h2>
+        <button class="modal-close" id="sellModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="sellDetails"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="cancelSell">Cancel</button>
+          <button class="btn btn-primary" id="confirmSell">Confirm Sale</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

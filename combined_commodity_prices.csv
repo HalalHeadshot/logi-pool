@@ -1,0 +1,41 @@
+District,Commodity Group,Commodity,MSP (Rs./Quintal),Price (Rs./Quintal)
+Mumbai,Cereals,Bajra(Pearl Millet/Cumbu),2775,4000
+Mumbai,Cereals,Maize,2400,3250
+Mumbai,Cereals,Wheat,2425,3950
+Mumbai,Oil Seeds,Mustard,5950,8000
+Mumbai,Oil Seeds,Sesamum(Sesame,0,0
+Mumbai,Pulses,Bengal Gram(Gram)(Whole),5650,7200
+Mumbai,Pulses,Black Gram(Urd Beans)(Whole),7800,0
+Mumbai,Pulses,Green Gram(Moong)(Whole),8768,10500
+Mumbai,Pulses,Lentil(Masur)(Whole),6700,9050
+Nagpur,Cereals,Paddy(Common),2369,0
+Nagpur,Cereals,Wheat,2425,3096.52
+Nagpur,Fibre Crops,Cotton,7710,7900
+Nagpur,Oil Seeds,Soyabean,5328,5528.5
+Nagpur,Pulses,Arhar(Tur/Red Gram)(Whole),8000,8446.51
+Nashik,Cereals,Bajra(Pearl Millet/Cumbu),2775,2775
+Nashik,Cereals,Wheat,2425,2600.47
+Nashik,Oil Seeds,Soyabean,5328,5499
+Nashik,Pulses,Arhar(Tur/Red Gram)(Whole),8000,8050
+Nashik,Pulses,Bengal Gram(Gram)(Whole),5650,0
+Pune,Cereals,Bajra(Pearl Millet/Cumbu),2775,3900
+Pune,Cereals,Jowar(Sorghum),3699,6000
+Pune,Cereals,Maize,2400,2700
+Pune,Cereals,Ragi(Finger Millet),4886,5100
+Pune,Cereals,Wheat,2425,0
+Pune,Oil Seeds,Soyabean,5328,5555
+Pune,Oil Seeds,Sunflower,7721,8110
+Pune,Pulses,Bengal Gram(Gram)(Whole),5650,6750
+Pune,Pulses,Black Gram(Urd Beans)(Whole),7800,8750
+Pune,Pulses,Green Gram(Moong)(Whole),8768,9150
+Pune,Pulses,Lentil(Masur)(Whole),6700,7000
+Sangli,Cereals,Bajra(Pearl Millet/Cumbu),2775,0
+Sangli,Cereals,Wheat,2425,0
+Sangli,Pulses,Green Gram(Moong)(Whole),8768,0
+Sangli,Pulses,Lentil(Masur)(Whole),6700,0
+Thane,Cereals,Bajra(Pearl Millet/Cumbu),2775,3200
+Thane,Cereals,Wheat,2425,2903.37
+Thane,Oil Seeds,Sesamum(Sesame,0,0
+Thane,Pulses,Bengal Gram(Gram)(Whole),5650,7000
+Thane,Pulses,Black Gram(Urd Beans)(Whole),7800,12000
+Thane,Pulses,Green Gram(Moong)(Whole),8768,10500

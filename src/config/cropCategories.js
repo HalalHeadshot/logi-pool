@@ -1,15 +1,46 @@
 export const CROP_CATEGORIES = {
+  // GRAIN - Cereals
   WHEAT: 'GRAIN',
   RICE: 'GRAIN',
   MAIZE: 'GRAIN',
+  BAJRA: 'GRAIN',
+  JOWAR: 'GRAIN',
+  RAGI: 'GRAIN',
+  PADDY: 'GRAIN',
 
+  // GRAIN - Pulses
+  'BENGAL GRAM': 'GRAIN',
+  GRAM: 'GRAIN',
+  'BLACK GRAM': 'GRAIN',
+  'URD BEANS': 'GRAIN',
+  'GREEN GRAM': 'GRAIN',
+  MOONG: 'GRAIN',
+  LENTIL: 'GRAIN',
+  MASUR: 'GRAIN',
+  ARHAR: 'GRAIN',
+  TUR: 'GRAIN',
+  'RED GRAM': 'GRAIN',
+
+  // GRAIN - Oil Seeds
+  MUSTARD: 'GRAIN',
+  SESAMUM: 'GRAIN',
+  SESAME: 'GRAIN',
+  SOYABEAN: 'GRAIN',
+  SUNFLOWER: 'GRAIN',
+
+  // GRAIN - Fibre Crops
+  COTTON: 'GRAIN',
+
+  // VEGETABLE
   TOMATO: 'VEGETABLE',
   ONION: 'VEGETABLE',
   POTATO: 'VEGETABLE',
 
+  // LEAFY
   SPINACH: 'LEAFY',
   CORIANDER: 'LEAFY',
 
+  // FRUIT
   MANGO: 'FRUIT',
   BANANA: 'FRUIT',
   APPLE: 'FRUIT'
