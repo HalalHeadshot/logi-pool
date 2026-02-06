@@ -1,0 +1,693 @@
+{
+    "info": {
+        "name": "Logi-Pool Multilingual Tests",
+        "description": "Complete multilingual testing suite - 58 test cases covering Hindi, Marathi, and English",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "user1_phone",
+            "value": "+919876543210",
+            "type": "string"
+        },
+        {
+            "key": "user2_phone",
+            "value": "+919123456789",
+            "type": "string"
+        },
+        {
+            "key": "user3_phone",
+            "value": "+919111222333",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "PART 1: Setup",
+            "item": [
+                {
+                    "name": "1.1 Create User 1 (English)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"ADDRESS Village Road, Pune, Maharashtra\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "1.2 Create User 2 (Will be Marathi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"ADDRESS Market Street, Pune\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "1.3 Create User 3 (Will be Hindi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"ADDRESS Farm House, Pune\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 2: Language Switching",
+            "item": [
+                {
+                    "name": "2.1 Switch User 1 to Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LANG HI\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "2.2 Switch User 2 to Marathi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"LANG MR\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "2.3 Keep User 3 in English",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"LANG EN\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "2.4 Test Invalid Language",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LANG FR\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 3: Hindi Input Tests",
+            "item": [
+                {
+                    "name": "3.1 Hindi Input → Hindi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"मदद\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.2 English Input → Hindi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"HELP\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.3 Marathi Input → Hindi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"मदत\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.4 STATS in Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"आँकड़े\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.5 STATS in English (User Hindi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"STATS\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.6 START in Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"शुरू\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.7 LOG in English (User Hindi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LOG TOMATO 50 2026-02-10\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "3.8 REWARDS in Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"पुरस्कार\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 4: Marathi Input Tests",
+            "item": [
+                {
+                    "name": "4.1 Marathi Input → Marathi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"मदत\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "4.2 English Input → Marathi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"HELP\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "4.3 Hindi Input → Marathi Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"मदद\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "4.4 STATS in English (User Marathi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"STATS\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "4.5 LOG in English (User Marathi)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user2_phone}}\",\n    \"message\": \"LOG TOMATO 100 2026-02-10\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 5: English Input Tests",
+            "item": [
+                {
+                    "name": "5.1 English Input → English Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"HELP\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "5.2 Hindi Input → English Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"मदद\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "5.3 Marathi Input → English Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"मदत\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "5.4 STATS in English",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"STATS\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "5.5 LOG in English",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user3_phone}}\",\n    \"message\": \"LOG TOMATO 200 2026-02-10\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 6: Mixed Language Sequence",
+            "item": [
+                {
+                    "name": "6.1 Send Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"मदद\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "6.2 Send English (Same User)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"HELP\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "6.3 Send Marathi (Same User)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"मदत\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "6.4 Switch to English",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LANG EN\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "6.5 Verify English Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"HELP\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "6.6 Switch Back to Hindi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LANG HI\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "PART 7: Error Messages",
+            "item": [
+                {
+                    "name": "7.1 Invalid Command (Hindi User)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"INVALID\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                },
+                {
+                    "name": "7.2 Invalid LOG Format (Hindi User)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"data\": {\n    \"sender\": \"{{user1_phone}}\",\n    \"message\": \"LOG TOMATO\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/sms/webhook"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -19,6 +19,11 @@ const driverSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
     default: null  // Links to registered truck (Service with type=TRUCK)
+  },
+  language: {
+    type: String,
+    enum: ['en', 'hi', 'mr'],
+    default: 'en'
   }
 });
 
