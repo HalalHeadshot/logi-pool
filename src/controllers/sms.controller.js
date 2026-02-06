@@ -452,11 +452,11 @@ export async function handleSMS(req, res, userLanguage) {
         let msg = result.message;
         if (result.earliest_available_at) {
           const availableAt = new Date(result.earliest_available_at);
-          msg += `\n\nâ° Earliest Available: ${availableAt.toLocaleString('en-IN', {
+          msg += `\n\nEarliest Available: ${availableAt.toLocaleString('en-IN', {
             dateStyle: 'medium',
             timeStyle: 'short'
           })}`;
-          msg += `\nðŸ’¡ Try booking after this time!`;
+          msg += `\nTry booking after this time!`;
         }
         return sendReply(phone, msg, res, userLanguage);
       }
@@ -466,23 +466,23 @@ export async function handleSMS(req, res, userLanguage) {
       const b = result.booking;
 
       let msg = `${result.message}\n`;
-      msg += `ðŸ‘¤ Owner: ${s.owner_name}\n`;
-      msg += `ðŸ“ Village: ${s.village}\n`;
-      msg += `ðŸ“ž Phone: ${s.phone}\n`;
-      msg += `ðŸ’° Original: â‚¹${b.original_price}\n`;
+      msg += `Owner: ${s.owner_name}\n`;
+      msg += `Village: ${s.village}\n`;
+      msg += `Phone: ${s.phone}\n`;
+      msg += `Original: ₹${b.original_price}\n`;
       if (b.discount_percentage > 0) {
-        msg += `ðŸŽ‰ Discount: ${b.discount_percentage}% (â‚¹${b.discount_amount} off)\n`;
+        msg += `Discount: ${b.discount_percentage}% (₹${b.discount_amount} off)\n`;
       }
-      msg += `ðŸ’µ Total Pay: â‚¹${b.final_price}\n`;
-      msg += `ðŸ†” Booking ID: ${b._id}\n`;
+      msg += `Total Pay: ₹${b.final_price}\n`;
+      msg += `Booking ID: ${b._id}\n`;
 
       const start = new Date(b.start_time);
       const end = new Date(b.end_time);
-      msg += `â° Start: ${start.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
-      msg += `â±ï¸ End: ${end.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+      msg += `Start: ${start.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
+      msg += `End: ${end.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}\n`;
 
       if (result.maps_link) {
-        msg += `\nðŸ—ºï¸ GOOGLE MAPS LINK FOR OWNER:\n${result.maps_link}`;
+        msg += `\nGOOGLE MAPS LINK FOR OWNER:\n${result.maps_link}`;
       }
 
       return sendReply(phone, msg, res, userLanguage);
@@ -503,11 +503,11 @@ export async function handleSMS(req, res, userLanguage) {
         return sendReply(phone, result.message, res, userLanguage);
       }
 
-      let msg = `ðŸ” Available in ${result.village} (${result.count}):\n`;
+      let msg = `Available in ${result.village} (${result.count}):\n`;
       result.services.forEach((s, i) => {
         msg += `\n${i + 1}. ${s.type}`;
         msg += `\n   Owner: ${s.owner_name}`;
-        msg += `\n   â‚¹${s.price_per_hour}/hr`;
+        msg += `\n   ₹${s.price_per_hour}/hr`;
         msg += `\n   Ph: ${s.phone}`;
       });
 
@@ -529,11 +529,11 @@ export async function handleSMS(req, res, userLanguage) {
         return sendReply(phone, result.message, res, userLanguage);
       }
 
-      let msg = `ðŸ“‹ Your Services (${result.count}):\n`;
+      let msg = `Your Services (${result.count}):\n`;
       result.services.forEach((s, i) => {
         msg += `\n${i + 1}. ${s.type} - ${s.village}`;
-        msg += `\n   â‚¹${s.price_per_hour}/hr`;
-        msg += `\n   ${s.available ? 'âœ… Available' : 'ðŸ”´ Booked'}`;
+        msg += `\n   ₹${s.price_per_hour}/hr`;
+        msg += `\n   ${s.available ? 'Available' : 'Booked'}`;
       });
 
       return sendReply(phone, msg, res, userLanguage);
@@ -554,10 +554,10 @@ export async function handleSMS(req, res, userLanguage) {
         return sendReply(phone, result.message, res, userLanguage);
       }
 
-      let msg = `ðŸ“š Your Bookings (Last ${result.count}):\n`;
+      let msg = `Your Bookings (Last ${result.count}):\n`;
       result.bookings.forEach((b, i) => {
         msg += `\n${i + 1}. ${b.type} - ${b.status}`;
-        msg += `\n   â‚¹${b.final_price}`;
+        msg += `\n   ₹${b.final_price}`;
         msg += `\n   ${new Date(b.date).toLocaleDateString()}`;
       });
 
@@ -571,7 +571,7 @@ export async function handleSMS(req, res, userLanguage) {
       const farmer = await getFarmerByPhone(phone);
       if (farmer) {
         return sendReply(phone,
-          'ðŸ‘¨â€ðŸŒ¾ FARMER MENU:\n' +
+          'FARMER MENU:\n' +
           'ADDRESS <Addr> - Set Address\n' +
           'LOG <Crop> <Qty> <Date> - Log Produce\n' +
           'AVAILABLE <Village> - Check Equipment\n' +
@@ -579,7 +579,7 @@ export async function handleSMS(req, res, userLanguage) {
           'MYBOOKINGS <Phone> - View Bookings\n' +
           'REWARDS - Check rewards status\n' +
           'HELP - Show this menu\n\n' +
-          'ðŸšœ EQUIPMENT OWNER:\n' +
+          'EQUIPMENT OWNER:\n' +
           'REGISTER <Type> <Addr> <Price> <Phone> <Name>\n' +
           'MYSERVICES <Phone> - View Services\n' +
           'STATS - System Statistics', res, userLanguage);
@@ -587,7 +587,7 @@ export async function handleSMS(req, res, userLanguage) {
       return sendReply(phone,
         'Send START to begin.\n' +
         'Or ADDRESS <your address> to register.\n\n' +
-        '🚜 Equipment Owner?\n' +
+        'Equipment Owner?\n' +
         'REGISTER <Type> <Addr> <Price> <Phone> <Name>', res, userLanguage);
     }
 
@@ -597,7 +597,7 @@ export async function handleSMS(req, res, userLanguage) {
 
       const status = await getFarmerRewardStatus(phone);
       return sendReply(phone,
-        `ðŸŽ REWARDS STATUS:\n` +
+        `REWARDS STATUS:\n` +
         `Total Dispatched: ${status.totalDispatched} kg\n` +
         `Reward Balance: ${status.rewardBalance} kg\n` +
         `Progress to next: ${status.progressToNext}/${status.nextThreshold} kg`, res, userLanguage);
@@ -638,7 +638,7 @@ export async function handleSMS(req, res, userLanguage) {
       try {
         rewardUsage = await processRewardUtilization(phone, weight);
       } catch (e) {
-        console.error('âŒ Reward utilization failed:', e.message);
+        console.error('Reward utilization failed:', e.message);
       }
 
       // Trigger Pooling (returns poolId and isReady)
@@ -648,7 +648,7 @@ export async function handleSMS(req, res, userLanguage) {
         `Expected arrival date : ${readyDate.toLocaleDateString()}`;
 
       if (rewardUsage.applied) {
-        response += `\nðŸŽ Discount applied: ${rewardUsage.used} kg\nRemaining balance: ${rewardUsage.remaining} kg`;
+        response += `\nDiscount applied: ${rewardUsage.used} kg\nRemaining balance: ${rewardUsage.remaining} kg`;
       }
 
       return sendReply(phone, response, res, userLanguage);

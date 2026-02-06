@@ -2,11 +2,13 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import smsRoutes from './routes/sms.routes.js';
 import journeyRoutes from './routes/journey.routes.js';
 import warehouseRoutes from './routes/warehouse.routes.js';
+import uiRoutes from './routes/ui.routes.js';
 import { connectMongo } from './config/mongo.js';
 import { checkExpiredPools } from './jobs/poolExpiry.job.js';
 import { checkExpiredBookings } from './jobs/equipmentExpiry.job.js';
@@ -16,6 +18,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.use(cors()); // Enable CORS for all origins
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.text({ type: 'application/cloudevents+json' }));
@@ -43,6 +46,7 @@ app.use('/sms/webhook', (req, res, next) => {
 
 app.use('/sms/webhook', smsRoutes);
 app.use('/journey', journeyRoutes);
+app.use('/api', uiRoutes); // Mounts /api/ui-data
 app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/market', warehouseRoutes);
 
